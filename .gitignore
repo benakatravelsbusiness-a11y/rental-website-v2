@@ -1,6 +1,32 @@
+# Dependencies
 node_modules/
+**/node_modules/
+
+# Build outputs
 dist/
 build/
-.env
-.DS_Store
+*.js.map
+
+# Wrangler local state
 .wrangler/
+**/.wrangler/
+
+# Environment & secrets
+.env
+.env.*
+*.pem
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temp / debug
+d1_list.json
+*.log
