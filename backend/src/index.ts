@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { secureHeaders } from 'hono/secure-headers';
 
 type Bindings = {
   DB: D1Database;
@@ -7,7 +8,8 @@ type Bindings = {
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-app.use('*', cors());
+app.use('*', secureHeaders());
+app.use('/api/*', cors());
 
 app.get('/', (c) => {
   return c.json({ message: 'Benaka Travels API is running!' });

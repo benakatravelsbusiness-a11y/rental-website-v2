@@ -1,0 +1,12 @@
+{
+  "name": "benaka-rentals-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:frontend": "cd frontend && npm run build",
+    "deploy": "npm run build:frontend && npx wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.80.0"
+  }
+}

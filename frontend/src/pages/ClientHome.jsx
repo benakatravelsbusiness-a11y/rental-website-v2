@@ -7,7 +7,7 @@ export default function ClientHome() {
 
   useEffect(() => {
     // In production, fetch from backend. Using mock data for demo if backend is offline.
-    fetch('http://127.0.0.1:8787/api/cars')
+    fetch('/api/cars')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {

@@ -5,4 +5,4 @@ compatibility_date = "2024-04-04"
 [[d1_databases]]
 binding = "DB"
 database_name = "benaka"
-database_id = "temp-local-id"
+database_id = "073bd03b-bbbe-487d-aa46-a1d01126d1fd"
