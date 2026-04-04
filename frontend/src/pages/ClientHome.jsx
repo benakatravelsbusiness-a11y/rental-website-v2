@@ -303,7 +303,7 @@ export default function ClientHome() {
           </div>
         </div>
         <div className="footer-bottom">
-          <p>© 2025 BENAKA TRAVELS. All Rights Reserved.</p>
+          <p>© 2025 BENAKA TRAVELS. All Rights Reserved. <a href="/admin" style={{ color: 'inherit', opacity: 0.15, fontSize: '.7rem', marginLeft: '.25rem' }} title="">⚙</a></p>
         </div>
       </footer>
 

@@ -5,6 +5,7 @@ compatibility_date = "2024-04-04"
 [assets]
 directory = "frontend/dist"
 binding = "ASSETS"
+not_found_handling = "single-page-application"
 
 [[d1_databases]]
 binding = "DB"
