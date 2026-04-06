@@ -1,0 +1,18 @@
+{
+  "name": "benaka-billing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SaaS ERP & Billing System for Benaka Car Rental Agency",
+  "workspaces": [
+    "api",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=api",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "deploy:api": "npm run deploy --workspace=api"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

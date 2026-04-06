@@ -2,6 +2,12 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 
+// Billing Sub-App Imports
+import { dashboardRoutes } from './billing-routes/dashboard';
+import { fleetRoutes } from './billing-routes/fleet';
+import { clientRoutes } from './billing-routes/clients';
+import { invoiceRoutes } from './billing-routes/invoices';
+
 type Bindings = { DB: D1Database };
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -301,5 +307,11 @@ app.get('/api/admin/revenue-chart', async (c) => {
     return c.json({ error: e.message }, 500);
   }
 });
+
+// ─── BILLING SUB-APP ROUTES ──────────────────────────────────────────────────
+app.route('/api/billing/dashboard', dashboardRoutes);
+app.route('/api/billing/fleet', fleetRoutes);
+app.route('/api/billing/clients', clientRoutes);
+app.route('/api/billing/invoices', invoiceRoutes);
 
 export default app;

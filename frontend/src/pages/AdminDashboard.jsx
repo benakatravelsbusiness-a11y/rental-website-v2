@@ -4,7 +4,7 @@ import {
   LayoutDashboard, BookOpen, Car, Users, BarChart2,
   Settings, HelpCircle, Bell, RefreshCw,
   Plus, Trash2, CheckCircle, XCircle, Menu, X,
-  Home, MessageCircle, Printer, Search, Phone
+  Home, MessageCircle, Printer, Search, Phone, Receipt
 } from 'lucide-react';
 import { Chart, registerables } from 'chart.js';
 import '../admin.css';
@@ -41,6 +41,45 @@ const whatsappLink = (phone, msg) => `https://wa.me/${phone.replace(/[^0-9]/g, '
 const Loader = () => <div style={{ textAlign: 'center', padding: '3rem', color: 'rgba(255,255,255,.3)' }}>⏳ Loading...</div>;
 const Empty = ({ icon, text }) => <div style={{ textAlign: 'center', padding: '3rem', color: 'rgba(255,255,255,.3)' }}><div style={{ fontSize: '2rem', marginBottom: '.5rem' }}>{icon}</div>{text}</div>;
 
+/* CSV Export helper */
+function exportCSV(rows, filename) {
+  const headers = Object.keys(rows[0]);
+  const csv = [headers.join(','), ...rows.map(r => headers.map(h => `"${String(r[h] ?? '').replace(/"/g,'""')}"`).join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* Print booking invoice from admin */
+function printAdminInvoice(b) {
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>Invoice ${b.ref}</title>
+  <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',sans-serif;padding:40px;color:#111}
+  .hd{text-align:center;border-bottom:3px solid #10b981;padding-bottom:20px;margin-bottom:28px}
+  .logo{font-size:24px;font-weight:900;color:#10b981}.sub{font-size:12px;color:#888;margin-top:4px}
+  .ref{display:inline-block;background:#f0fdf4;color:#065f46;padding:6px 18px;border-radius:99px;font-size:13px;font-weight:700;margin:14px 0;border:1px solid #86efac}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:20px 0}
+  .sec h4{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#888;margin-bottom:8px}.sec p{font-size:14px;margin:3px 0}
+  table{width:100%;border-collapse:collapse;margin:20px 0}th{background:#f4f4f4;padding:10px;text-align:left;font-size:11px;text-transform:uppercase;color:#666}
+  td{padding:10px;border-bottom:1px solid #eee;font-size:14px}
+  .total{background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:16px 20px;display:flex;justify-content:space-between;margin-top:20px}
+  .amt{font-size:28px;font-weight:900;color:#10b981}.ft{text-align:center;margin-top:32px;padding-top:16px;border-top:1px solid #eee;font-size:11px;color:#999}
+  </style></head><body>
+  <div class='hd'><div class='logo'>🚗 BENAKA TOURS AND TRAVELS</div><div class='sub'>Admin Invoice · Panchaxari Nagar, Gadag</div></div>
+  <div style='text-align:center'><div class='ref'>Ref: ${b.ref}</div></div>
+  <div class='grid'>
+    <div class='sec'><h4>Customer</h4><p><strong>${b.customer_name}</strong></p><p>${b.customer_phone}</p><p>${b.customer_email}</p></div>
+    <div class='sec'><h4>Vehicle</h4><p><strong>${b.car_name}</strong></p><p>Rate: $${b.daily_rate}/day</p></div>
+  </div>
+  <table><thead><tr><th>Pickup</th><th>Return</th><th>Days</th><th>Rate</th><th>Total</th></tr></thead>
+  <tbody><tr><td>${b.pickup_date}</td><td>${b.return_date}</td><td>${b.total_days}</td><td>$${b.daily_rate}</td><td><strong>$${b.total_price}</strong></td></tr></tbody></table>
+  <div class='total'><div>Status: <strong>${b.status.toUpperCase()}</strong></div><div class='amt'>$${b.total_price}</div></div>
+  <div class='ft'><p>BENAKA TOURS AND TRAVELS · +91 81051 97768 · benakatravelsbusiness@gmail.com</p></div>
+  </body></html>`);
+  w.document.close(); setTimeout(() => w.print(), 300);
+}
+
 /* ══════════════ REVENUE CHART ══════════════ */
 function RevenueChart({ data }) {
   const ref = useRef(null);
@@ -60,10 +99,10 @@ function RevenueChart({ data }) {
         datasets: [{
           label: 'Revenue',
           data: values,
-          borderColor: '#3b82f6',
-          backgroundColor: 'rgba(59,130,246,.12)',
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16,185,129,.1)',
           borderWidth: 2.5,
-          pointBackgroundColor: '#3b82f6',
+          pointBackgroundColor: '#10b981',
           pointRadius: 4,
           pointHoverRadius: 6,
           fill: true,
@@ -76,8 +115,8 @@ function RevenueChart({ data }) {
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#1e293b',
-            borderColor: 'rgba(59,130,246,.3)',
+            backgroundColor: '#1a1a28',
+            borderColor: 'rgba(16,185,129,.3)',
             borderWidth: 1,
             titleColor: '#94a3b8',
             bodyColor: '#fff',
@@ -368,30 +407,23 @@ function BookingsPage() {
                       <div>→ {b.return_date}</div>
                     </td>
                     <td>{b.total_days}d</td>
-                    <td style={{ fontWeight: 700, color: '#60a5fa' }}>${b.total_price}</td>
+                    <td style={{ fontWeight: 700, color: '#34d399' }}>${b.total_price}</td>
                     <td><StatusPill status={b.status} /></td>
                     <td>
                       <div style={{ display: 'flex', gap: '.3rem', flexWrap: 'wrap' }}>
-                        {/* Status actions based on booking lifecycle */}
                         {b.status === 'pending' && <>
-                          <button className="adm-btn adm-btn-success adm-btn-sm" onClick={() => updateStatus(b.id, 'confirmed')} title="Confirm booking"><CheckCircle size={13} /> Confirm</button>
+                          <button className="adm-btn adm-btn-success adm-btn-sm" onClick={() => updateStatus(b.id, 'confirmed')} title="Confirm"><CheckCircle size={13} /> Confirm</button>
                           <button className="adm-btn adm-btn-danger adm-btn-sm" onClick={() => updateStatus(b.id, 'cancelled')} title="Cancel"><XCircle size={13} /></button>
                         </>}
                         {b.status === 'confirmed' && (
-                          <button className="adm-btn adm-btn-success adm-btn-sm" onClick={() => updateStatus(b.id, 'completed')} title="Mark trip completed — car released, revenue saved">✅ Trip Done</button>
+                          <button className="adm-btn adm-btn-success adm-btn-sm" onClick={() => updateStatus(b.id, 'completed')} title="Mark trip done — releases car">✅ Trip Done</button>
                         )}
-                        {/* WhatsApp — always available */}
-                        <a
-                          href={whatsappLink(b.customer_phone, `Hi ${b.customer_name}! This is BENAKA TRAVELS regarding your booking ${b.ref} for ${b.car_name} (${b.pickup_date} to ${b.return_date}). Total: $${b.total_price}.`)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="adm-btn adm-btn-ghost adm-btn-sm"
-                          style={{ color: '#25D366' }}
-                          title="Contact via WhatsApp"
-                        >
+                        <button className="adm-btn adm-btn-ghost adm-btn-sm" onClick={() => printAdminInvoice(b)} title="Print invoice" style={{ color: '#a78bfa' }}>
+                          <Printer size={13} />
+                        </button>
+                        <a href={whatsappLink(b.customer_phone, `Hi ${b.customer_name}! BENAKA TRAVELS: This is an update on your booking ${b.ref} for the ${b.car_name} (${b.pickup_date} to ${b.return_date}). Status is now: ${b.status.toUpperCase()}. Total amount: $${b.total_price}. Please let us know if you have any questions!`)} target="_blank" rel="noreferrer" className="adm-btn adm-btn-ghost adm-btn-sm" style={{ color: '#25D366' }} title="WhatsApp Update">
                           <MessageCircle size={13} />
                         </a>
-                        {/* Delete — available for cancelled/completed */}
                         {(b.status === 'cancelled' || b.status === 'completed') && (
                           <button className="adm-btn adm-btn-danger adm-btn-sm" onClick={() => deleteBooking(b.id, b.ref)} title="Delete"><Trash2 size={13} /></button>
                         )}
@@ -447,7 +479,7 @@ function VehiclesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ name: '', category: 'Sports', price: '', image_url: '', features: '', seats: '5', fuel_type: 'Petrol' });
+  const [form, setForm] = useState({ name: '', category: 'Sedan', price: '', image_url: '', features: '', seats: '5', fuel_type: 'Diesel' });
   const [submitting, setSubmitting] = useState(false);
 
   const fetchCars = useCallback(async () => {
@@ -466,7 +498,7 @@ function VehiclesPage() {
     setSubmitting(true);
     try {
       const r = await fetch('/api/admin/cars', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: TOKEN }, body: JSON.stringify(form) });
-      if (r.ok) { toast('Vehicle added!', 'success'); setShowModal(false); setForm({ name: '', category: 'Sports', price: '', image_url: '', features: '', seats: '5', fuel_type: 'Petrol' }); fetchCars(); }
+      if (r.ok) { toast('Vehicle added!', 'success'); setShowModal(false); setForm({ name: '', category: 'Sedan', price: '', image_url: '', features: '', seats: '5', fuel_type: 'Diesel' }); fetchCars(); }
       else { const d = await r.json(); toast(d.error || 'Failed', 'error'); }
     } catch { toast('Network error', 'error'); }
     setSubmitting(false);
@@ -499,6 +531,7 @@ function VehiclesPage() {
         <div style={{ display: 'flex', gap: '.75rem', flexWrap: 'wrap' }}>
           <input className="adm-search" placeholder="🔍 Search..." value={search} onChange={e => setSearch(e.target.value)} />
           <button className="adm-btn adm-btn-ghost adm-btn-sm" onClick={fetchCars}><RefreshCw size={14} /></button>
+          <button className="adm-btn adm-btn-ghost adm-btn-sm" onClick={() => cars.length > 0 && exportCSV(cars.map(c => ({ Name: c.name, Category: c.category, Price: c.price, Seats: c.seats, Fuel: c.fuel_type, Available: c.available ? 'Yes' : 'No' })), 'fleet_export.csv')}>⬇ CSV</button>
           <button className="adm-btn adm-btn-primary" onClick={() => setShowModal(true)}><Plus size={15} /> Add Vehicle</button>
         </div>
       </div>
@@ -545,12 +578,12 @@ function VehiclesPage() {
             <form onSubmit={handleAdd}>
               <div className="adm-form-group"><label>Name *</label><input required className="adm-input" placeholder="e.g. Lamborghini Urus" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
               <div className="adm-form-row">
-                <div className="adm-form-group"><label>Category *</label><select className="adm-input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>{['Sports', 'SUV', 'Electric', 'Luxury'].map(c => <option key={c}>{c}</option>)}</select></div>
+                <div className="adm-form-group"><label>Category *</label><select className="adm-input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>{['Sedan', 'SUV', 'MUV', 'Minibus', 'Bus'].map(c => <option key={c}>{c}</option>)}</select></div>
                 <div className="adm-form-group"><label>Daily Rate ($) *</label><input required type="number" className="adm-input" placeholder="450" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} /></div>
               </div>
               <div className="adm-form-row">
                 <div className="adm-form-group"><label>Seats</label><input type="number" className="adm-input" value={form.seats} onChange={e => setForm({ ...form, seats: e.target.value })} /></div>
-                <div className="adm-form-group"><label>Fuel</label><select className="adm-input" value={form.fuel_type} onChange={e => setForm({ ...form, fuel_type: e.target.value })}>{['Petrol', 'Electric', 'Diesel', 'Hybrid'].map(f => <option key={f}>{f}</option>)}</select></div>
+                <div className="adm-form-group"><label>Fuel</label><select className="adm-input" value={form.fuel_type} onChange={e => setForm({ ...form, fuel_type: e.target.value })}>{['Petrol / CNG / Diesel', 'Petrol / CNG', 'Diesel', 'Petrol', 'Electric'].map(f => <option key={f}>{f}</option>)}</select></div>
               </div>
               <div className="adm-form-group"><label>Features *</label><input required className="adm-input" placeholder="V8 Biturbo, 641hp" value={form.features} onChange={e => setForm({ ...form, features: e.target.value })} /></div>
               <div className="adm-form-group"><label>Image URL *</label><input required className="adm-input" placeholder="https://..." value={form.image_url} onChange={e => setForm({ ...form, image_url: e.target.value })} /></div>
@@ -613,7 +646,7 @@ function CustomersPage() {
                     <td style={{ color: 'rgba(255,255,255,.3)' }}>{i + 1}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '.65rem' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg,#3b82f6,#06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '.85rem', flexShrink: 0 }}>{c.name.charAt(0)}</div>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg,#10b981,#059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '.85rem', flexShrink: 0 }}>{c.name.charAt(0)}</div>
                         <div>
                           <div style={{ fontWeight: 600 }}>{c.name}</div>
                           <div style={{ fontSize: '.7rem', color: 'rgba(255,255,255,.3)' }}>Last: {c.lastCar}</div>
@@ -709,7 +742,7 @@ function ReportsPage() {
                     <span style={{ fontSize: '.85rem', fontWeight: 700 }}>{cnt} ({pct}%)</span>
                   </div>
                   <div style={{ background: 'rgba(255,255,255,.06)', borderRadius: '99px', height: '6px' }}>
-                    <div style={{ background: '#3b82f6', borderRadius: '99px', height: '100%', width: `${pct}%`, transition: 'width .5s ease' }} />
+                    <div style={{ background: '#10b981', borderRadius: '99px', height: '100%', width: `${pct}%`, transition: 'width .5s ease' }} />
                   </div>
                 </div>
               );
@@ -788,13 +821,24 @@ function SupportPage() {
         {faqs.map((f, i) => (
           <div key={i} className="adm-panel">
             <div className="adm-panel-body">
-              <div style={{ fontWeight: 700, marginBottom: '.5rem', color: '#60a5fa' }}>Q: {f.q}</div>
+              <div style={{ fontWeight: 700, marginBottom: '.5rem', color: '#34d399' }}>Q: {f.q}</div>
               <div style={{ fontSize: '.875rem', color: 'rgba(255,255,255,.65)', lineHeight: 1.7 }}>{f.a}</div>
             </div>
           </div>
         ))}
       </div>
     </>
+  );
+}
+
+/* ══════════════════════════════════════════════════
+   BILLING ENGINE PAGE (Iframe Embed)
+══════════════════════════════════════════════════ */
+function BillingEnginePage() {
+  return (
+    <div style={{ height: 'calc(100vh - 120px)', width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <iframe src="/billing/index.html" frameBorder="0" width="100%" height="100%" title="Billing System"></iframe>
+    </div>
   );
 }
 
@@ -818,6 +862,7 @@ export default function AdminDashboard() {
     { key: 'bookings', label: 'Bookings', icon: <BookOpen size={17} />, badge: pendingCount },
     { key: 'vehicles', label: 'Vehicles', icon: <Car size={17} /> },
     { key: 'customers', label: 'Customers', icon: <Users size={17} /> },
+    { key: 'billing', label: 'Billing Engine', icon: <Receipt size={17} /> },
     { key: 'reports', label: 'Reports', icon: <BarChart2 size={17} /> },
   ];
 
@@ -826,6 +871,7 @@ export default function AdminDashboard() {
     bookings: ['Bookings', 'Manage all customer reservations'],
     vehicles: ['Fleet Management', 'Add, edit, and manage your vehicles'],
     customers: ['Customers', 'Customer profiles from bookings'],
+    billing: ['Advanced Billing', 'Invoicing and CRM suite'],
     reports: ['Reports & Analytics', 'Business performance overview'],
     settings: ['Settings', 'Configure your admin panel'],
     support: ['Support', 'Help and FAQ'],
@@ -877,6 +923,7 @@ export default function AdminDashboard() {
           {page === 'bookings' && <BookingsPage />}
           {page === 'vehicles' && <VehiclesPage />}
           {page === 'customers' && <CustomersPage />}
+          {page === 'billing' && <BillingEnginePage />}
           {page === 'reports' && <ReportsPage />}
           {page === 'settings' && <SettingsPage />}
           {page === 'support' && <SupportPage />}
