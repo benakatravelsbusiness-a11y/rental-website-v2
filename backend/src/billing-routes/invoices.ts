@@ -75,7 +75,10 @@ invoiceRoutes.post('/', async (c) => {
   if (!vehicle) return c.json<ApiResponse>({ success: false, error: 'Vehicle not found' }, 404);
 
   const invoiceId = await generateInvoiceId(db);
-  const subtotalPaise = (body.line_items || []).reduce((sum, item) => sum + item.amount_paise, 0);
+  // Calculate total: Base + Extras + Taxes
+  const baseRental = body.subtotal_paise || 0;
+  const extras = (body.driver_extra_duty_paise || 0) + (body.driver_batta_paise || 0) + (body.toll_gate_paise || 0) + (body.fastag_paise || 0);
+  const subtotalPaise = baseRental + extras + (body.line_items || []).reduce((sum, item) => sum + item.amount_paise, 0);
   
   // Tax Logic
   const cgstRate = body.cgst_rate ?? 9.0;
@@ -150,7 +153,7 @@ invoiceRoutes.delete('/:id', async (c) => {
   const id = c.req.param('id');
   const invoice = await db.prepare('SELECT id, status, car_id FROM invoices WHERE id = ?').bind(id).first<{ id: string; status: string; car_id: number }>();
   if (!invoice) return c.json<ApiResponse>({ success: false, error: 'Invoice not found' }, 404);
-  if (invoice.status !== 'Draft') return c.json<ApiResponse>({ success: false, error: 'Only Draft invoices can be deleted' }, 400);
+  // Admin deletion allowed for all statuses in dashboard logic
 
   await db.batch([
     db.prepare('DELETE FROM invoice_line_items WHERE invoice_id = ?').bind(id),
@@ -172,16 +175,19 @@ invoiceRoutes.post('/:id/end-trip', async (c) => {
 
   const statements: D1PreparedStatement[] = [];
   let newSubtotal = invoice.subtotal_paise;
-  if (body.extra_charge_paise && body.extra_charge_paise > 0) {
-    const desc = body.description || 'Extra KM Charge';
-    statements.push(db.prepare(`INSERT INTO invoice_line_items (invoice_id, description, amount_paise) VALUES (?, ?, ?)`).bind(id, desc, body.extra_charge_paise));
-    newSubtotal += body.extra_charge_paise;
-  }
+  statements.push(db.prepare(`INSERT INTO invoice_line_items (invoice_id, description, amount_paise) VALUES (?, ?, ?)`).bind(id, body.description || 'Extra Charge', body.extra_charge_paise));
+  
+  // Recalculate everything based on the fresh data
+  const updatedInv = await db.prepare('SELECT * FROM invoices WHERE id = ?').bind(id).first<Invoice>();
+  if (!updatedInv) return c.json<ApiResponse>({ success: false, error: 'Sync error' }, 500);
 
-  // Proper GST calculation on trip end
-  const cgstPaise = invoice.bill_type === 'GST' ? calculateGST(newSubtotal, invoice.cgst_rate) : 0;
-  const sgstPaise = invoice.bill_type === 'GST' ? calculateGST(newSubtotal, invoice.sgst_rate) : 0;
-  const totalAmountPaise = newSubtotal + cgstPaise + sgstPaise;
+  const freshSubtotal = updatedInv.subtotal_paise + body.extra_charge_paise;
+  const extras = updatedInv.driver_extra_duty_paise + updatedInv.driver_batta_paise + updatedInv.toll_gate_paise + updatedInv.fastag_paise;
+  const combinedSubtotal = freshSubtotal + extras;
+
+  const cgstPaise = updatedInv.bill_type === 'GST' ? calculateGST(combinedSubtotal, updatedInv.cgst_rate) : 0;
+  const sgstPaise = updatedInv.bill_type === 'GST' ? calculateGST(combinedSubtotal, updatedInv.sgst_rate) : 0;
+  const totalAmountPaise = combinedSubtotal + cgstPaise + sgstPaise;
 
   statements.push(db.prepare(`
     UPDATE invoices 

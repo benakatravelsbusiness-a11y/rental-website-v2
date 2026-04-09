@@ -151,7 +151,7 @@ function printProfessionalInvoice(invoiceData) {
           ${(i.driver_batta_paise > 0) ? `<tr><td>02</td><td>Driver Batta</td><td style="text-align:right">${fmt(i.driver_batta_paise)}</td></tr>` : ''}
           ${(i.toll_gate_paise > 0) ? `<tr><td>03</td><td>Toll Gate / Parking</td><td style="text-align:right">${fmt(i.toll_gate_paise)}</td></tr>` : ''}
           ${(i.fastag_paise > 0) ? `<tr><td>04</td><td>Fastag Charges</td><td style="text-align:right">${fmt(i.fastag_paise)}</td></tr>` : ''}
-          ${i.line_items?.map((li, idx) => li.amount_paise > 0 ? `<tr><td>0${idx+5}</td><td>${li.description}</td><td style="text-align:right">${fmt(li.amount_paise)}</td></tr>` : '').join('')}
+          ${(i.line_items || []).map((li, idx) => li.amount_paise > 0 ? `<tr><td>0${idx+5}</td><td>${li.description}</td><td style="text-align:right">${fmt(li.amount_paise)}</td></tr>` : '').join('')}
         </tbody>
       </table>
       
@@ -223,12 +223,12 @@ function RevenueChart({ data }) {
             borderWidth: 1,
             titleColor: '#94a3b8',
             bodyColor: '#fff',
-            callbacks: { label: ctx => `$${ctx.parsed.y.toLocaleString()}` }
+            callbacks: { label: ctx => `₹${ctx.parsed.y.toLocaleString('en-IN')}` }
           }
         },
         scales: {
           x: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: 'rgba(255,255,255,.4)', font: { size: 10 }, maxTicksLimit: 10 } },
-          y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: 'rgba(255,255,255,.4)', font: { size: 11 }, callback: v => `$${v}` }, beginAtZero: true }
+          y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: 'rgba(255,255,255,.4)', font: { size: 11 }, callback: v => `₹${v}` }, beginAtZero: true }
         }
       }
     });
@@ -279,7 +279,7 @@ function DashboardPage({ setPage }) {
         {[
           { label: 'Total Bookings', value: stats?.totalBookings ?? '—', sub: `${stats?.pendingBookings ?? 0} pending`, subClass: 'yellow', icon: '📋', iconClass: 'icon-blue' },
           { label: 'Available Fleet', value: `${stats?.availableCars ?? '—'} Cars`, sub: `${stats?.totalCars ?? '—'} total`, subClass: 'blue', icon: '🚗', iconClass: 'icon-green' },
-          { label: 'Total Revenue', value: `$${(stats?.totalRevenue || 0).toLocaleString()}`, sub: `$${(stats?.monthRevenue || 0).toLocaleString()} this month`, subClass: 'green', icon: '💰', iconClass: 'icon-yellow' },
+          { label: 'Total Revenue', value: `₹${((stats?.totalRevenue || 0) / 100).toLocaleString('en-IN')}`, sub: `₹${((stats?.monthRevenue || 0) / 100).toLocaleString('en-IN')} this month`, subClass: 'green', icon: '💰', iconClass: 'icon-yellow' },
           { label: 'Active Rentals', value: stats?.rentedCars ?? '—', sub: `${stats?.completedBookings ?? 0} completed`, subClass: 'blue', icon: '🔑', iconClass: 'icon-red' },
         ].map((s, i) => (
           <div key={i} className="adm-stat-card">
@@ -1032,9 +1032,9 @@ function BillingEnginePage() {
         fetchAll();
       } else {
         const d = await r.json();
-        toast(d.error || 'Failed', 'error');
+        toast(d.error || 'Failed to generate invoice', 'error');
       }
-    } catch { toast('Network error', 'error'); }
+    } catch { toast('Network error: Could not reach server', 'error'); }
   };
 
   const deleteInvoice = async (id) => {
@@ -1042,24 +1042,92 @@ function BillingEnginePage() {
     try {
       const r = await fetch(`/api/admin/billing/invoices/${id}`, { method: 'DELETE', headers: { Authorization: TOKEN } });
       if (r.ok) { toast('Invoice deleted', 'success'); fetchAll(); }
-    } catch { toast('Network error', 'error'); }
+      else {
+        const d = await r.json();
+        toast(d.error || 'Delete failed', 'error');
+      }
+    } catch { toast('Network error during delete', 'error'); }
   };
 
-      {showCreate && <InvoiceFormModal 
-        onClose={() => setShowCreate(false)} 
-        onSuccess={() => { setShowCreate(false); fetchAll(); }}
-        cars={cars}
-        clients={clients}
-        onAddClient={() => { setShowCreate(false); setShowAddClient(true); }}
-      />}
+  return (
+    <div className="adm-page-fade">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.02em' }}>Invoices & Billing</h2>
+          <p style={{ fontSize: '.8rem', color: 'rgba(255,255,255,.4)' }}>{invoices.length} total records generated</p>
+        </div>
+        <div style={{ display: 'flex', gap: '.75rem' }}>
+          <button className="adm-btn adm-btn-ghost" onClick={fetchAll}><RefreshCw size={15} /> Refresh</button>
+          <button className="adm-btn adm-btn-primary" onClick={() => setShowCreate(true)}><Plus size={15} /> Create Manual Bill</button>
+        </div>
+      </div>
 
-      {showAddClient && <ClientFormModal
-        onClose={() => setShowAddClient(false)}
-        onSuccess={() => { setShowAddClient(false); fetchAll(); setShowCreate(true); }}
-      />}
+      <div className="adm-panel">
+        <div style={{ overflowX: 'auto' }}>
+          {loading ? (
+            <div style={{ padding: '4rem', textAlign: 'center' }}><p style={{ color: 'rgba(255,255,255,0.4)' }}>Loading...</p></div>
+          ) : invoices.length === 0 ? (
+            <div style={{ padding: '5rem 2rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.3 }}>🧾</div>
+              <h3 style={{ fontWeight: 600, marginBottom: '.5rem' }}>No Invoices Yet</h3>
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '.9rem' }}>Create your first bill to see it here.</p>
+            </div>
+          ) : (
+            <table className="adm-table">
+              <thead>
+                <tr>
+                  <th>INV #</th>
+                  <th>Customer</th>
+                  <th>Vehicle</th>
+                  <th>Dates</th>
+                  <th style={{ textAlign: 'right' }}>Total</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.map(inv => (
+                  <tr key={inv.id}>
+                    <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{inv.id}</td>
+                    <td>{inv.client_name}</td>
+                    <td>{inv.car_model}</td>
+                    <td style={{ fontSize: '.8rem', color: 'rgba(255,255,255,0.6)' }}>{inv.start_date} → {inv.end_date}</td>
+                    <td style={{ fontWeight: 700, color: '#34d399', textAlign: 'right' }}>₹{(inv.total_amount_paise / 100).toLocaleString()}</td>
+                    <td><span className={`adm-badge ${inv.status.toLowerCase()}`}>{inv.status}</span></td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '.4rem', justifyContent: 'flex-end' }}>
+                        <button className="adm-btn adm-btn-ghost adm-btn-sm" onClick={() => printProfessionalInvoice(inv)} title="Print"><Printer size={15} /></button>
+                        <button className="adm-btn adm-btn-ghost adm-btn-sm" onClick={() => deleteInvoice(inv.id)} title="Delete" style={{ color: '#ef4444' }}><Trash2 size={15} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {showCreate && (
+        <InvoiceFormModal 
+          onClose={() => setShowCreate(false)} 
+          onSuccess={() => { setShowCreate(false); fetchAll(); }}
+          cars={cars}
+          clients={clients}
+          onAddClient={() => { setShowCreate(false); setShowAddClient(true); }}
+        />
+      )}
+
+      {showAddClient && (
+        <ClientFormModal
+          onClose={() => setShowAddClient(false)}
+          onSuccess={() => { setShowAddClient(false); fetchAll(); setShowCreate(true); }}
+        />
+      )}
     </div>
   );
 }
+
 
 function InvoiceFormModal({ onClose, onSuccess, cars, clients, onAddClient }) {
   const [form, setForm] = useState({
@@ -1070,14 +1138,20 @@ function InvoiceFormModal({ onClose, onSuccess, cars, clients, onAddClient }) {
     cgst_rate: 9, sgst_rate: 9, advance_paid: 0
   });
 
-  const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Auto-calculate base rental if working days and car rate are available
+    const selectedCar = cars.find(c => c.id === parseInt(form.car_id));
+    const dailyRate = selectedCar ? (selectedCar.price * 100) : 0;
+    const workingDays = parseInt(form.working_days) || 0;
+    const calculatedBasePaise = workingDays * dailyRate;
+
     const payload = {
       ...form,
       client_id: parseInt(form.client_id),
       car_id: parseInt(form.car_id),
-      subtotal_paise: 0, 
-      line_items: [{ description: 'Base Rental', amount_paise: 0 }],
+      subtotal_paise: calculatedBasePaise, 
+      line_items: calculatedBasePaise > 0 ? [] : [{ description: 'Base Rental', amount_paise: 0 }],
       advance_paid_paise: Math.round(form.advance_paid * 100),
       driver_batta_paise: Math.round(form.driver_batta * 100),
       toll_gate_paise: Math.round(form.toll_gate * 100),
