@@ -24,7 +24,7 @@ export default function Navbar({ scrolled = false }) {
           <button onClick={() => scrollTo('contact')} className="nav-link">Contact</button>
         </div>
 
-        <a href="tel:+918105197768" className="nav-cta" style={{ marginLeft: 'auto', marginRight: '.75rem', display: 'none' }}>
+        <a href="tel:+916362416120" className="nav-cta" style={{ marginLeft: 'auto', marginRight: '.75rem', display: 'none' }}>
           📞 Call
         </a>
 
@@ -45,8 +45,8 @@ export default function Navbar({ scrolled = false }) {
         <button onClick={() => scrollTo('why-us')} className="mobile-nav-link">⭐ Why Choose Us</button>
         <button onClick={() => scrollTo('faq')} className="mobile-nav-link">❓ FAQ</button>
         <button onClick={() => scrollTo('contact')} className="mobile-nav-link">📞 Contact</button>
-        <a href="tel:+918105197768" className="mobile-nav-link" style={{ color: 'var(--gold)', fontWeight: 700 }}>
-          Call: +91 81051 97768
+        <a href="tel:+916362416120" className="mobile-nav-link" style={{ color: 'var(--gold)', fontWeight: 700 }}>
+          Call: +91 63624 16120
         </a>
       </div>
     </>

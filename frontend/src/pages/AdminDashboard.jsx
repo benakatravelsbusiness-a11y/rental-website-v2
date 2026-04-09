@@ -4,7 +4,8 @@ import {
   LayoutDashboard, BookOpen, Car, Users, BarChart2,
   Settings, HelpCircle, Bell, RefreshCw,
   Plus, Trash2, CheckCircle, XCircle, Menu, X,
-  Home, MessageCircle, Printer, Search, Phone, Receipt
+  Home, MessageCircle, Printer, Search, Phone, Receipt,
+  FileText, CreditCard, Calendar, User, MapPin, Gauge
 } from 'lucide-react';
 import { Chart, registerables } from 'chart.js';
 import '../admin.css';
@@ -13,7 +14,11 @@ Chart.register(...registerables);
 
 const TOKEN = 'Bearer benakaAdmin2026';
 
-/* ══════════════ TOAST ══════════════ */
+/* ══════════════ GLOBAL MODALS ══════════════ */
+let _setEndTripData = null;
+let _setShowEndTripModal = null;
+let _setManualBookingRef = null;
+
 let _setToasts = null;
 function toast(msg, type = 'success') {
   const id = Date.now();
@@ -51,33 +56,131 @@ function exportCSV(rows, filename) {
   URL.revokeObjectURL(url);
 }
 
-/* Print booking invoice from admin */
-function printAdminInvoice(b) {
+/* Print high-fidelity invoice */
+function printProfessionalInvoice(invoiceData) {
+  const i = invoiceData;
+  const isGST = i.bill_type === 'GST';
+  
+  // Format currency
+  const fmt = (paise) => `₹${((paise || 0) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  
   const w = window.open('', '_blank');
-  w.document.write(`<!DOCTYPE html><html><head><title>Invoice ${b.ref}</title>
-  <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',sans-serif;padding:40px;color:#111}
-  .hd{text-align:center;border-bottom:3px solid #10b981;padding-bottom:20px;margin-bottom:28px}
-  .logo{font-size:24px;font-weight:900;color:#10b981}.sub{font-size:12px;color:#888;margin-top:4px}
-  .ref{display:inline-block;background:#f0fdf4;color:#065f46;padding:6px 18px;border-radius:99px;font-size:13px;font-weight:700;margin:14px 0;border:1px solid #86efac}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:20px 0}
-  .sec h4{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#888;margin-bottom:8px}.sec p{font-size:14px;margin:3px 0}
-  table{width:100%;border-collapse:collapse;margin:20px 0}th{background:#f4f4f4;padding:10px;text-align:left;font-size:11px;text-transform:uppercase;color:#666}
-  td{padding:10px;border-bottom:1px solid #eee;font-size:14px}
-  .total{background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:16px 20px;display:flex;justify-content:space-between;margin-top:20px}
-  .amt{font-size:28px;font-weight:900;color:#10b981}.ft{text-align:center;margin-top:32px;padding-top:16px;border-top:1px solid #eee;font-size:11px;color:#999}
+  w.document.write(`<!DOCTYPE html><html><head><title>Invoice ${i.id}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Inter', sans-serif;padding:40px;color:#111;line-height:1.5;background:#fff}
+    .invoice-container{max-width:800px;margin:0 auto;border:1px solid #eee;padding:40px;box-shadow:0 0 20px rgba(0,0,0,0.05)}
+    .header{display:flex;justify-content:space-between;border-bottom:2px solid #10b981;padding-bottom:20px;margin-bottom:30px}
+    .brand h1{font-size:24px;font-weight:900;color:#10b981;letter-spacing:-0.5px}
+    .brand p{font-size:12px;color:#666}
+    .bill-title{text-align:right}
+    .bill-title h2{font-size:20px;text-transform:uppercase;color:#334155;letter-spacing:1px}
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-bottom:40px}
+    .info-sec h4{font-size:11px;text-transform:uppercase;color:#10b981;margin-bottom:8px;letter-spacing:1px}
+    .info-sec p{font-size:14px;font-weight:500;margin:2px 0}
+    .invoice-meta{text-align:right}
+    .invoice-meta p{font-size:13px;color:#475569}
+    table{width:100%;border-collapse:collapse;margin:20px 0}
+    th{background:#f8fafc;padding:12px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b;border-bottom:2px solid #e2e8f0}
+    td{padding:12px;border-bottom:1px solid #f1f5f9;font-size:14px;color:#1e293b}
+    .totals-sec{display:flex;justify-content:flex-end;margin-top:20px}
+    .totals-table{width:300px}
+    .totals-table tr td:first-child{text-align:right;color:#64748b;font-size:13px}
+    .totals-table tr td:last-child{text-align:right;font-weight:700;font-size:15px}
+    .grand-total{background:#f0fdf4;color:#166534}
+    .grand-total td{font-size:18px !important;padding:15px !important;border-bottom:none !important}
+    .bank-details{margin-top:40px;padding-top:20px;border-top:1px solid #eee}
+    .bank-details h4{font-size:12px;margin-bottom:5px;color:#334155}
+    .bank-details p{font-size:12px;color:#64748b}
+    .footer{text-align:center;margin-top:50px;font-size:11px;color:#94a3b8;border-top:1px dashed #e2e8f0;padding-top:20px}
+    @media print{.invoice-container{box-shadow:none;border:none;padding:0}}
   </style></head><body>
-  <div class='hd'><div class='logo'>🚗 BENAKA TOURS AND TRAVELS</div><div class='sub'>Admin Invoice · Panchaxari Nagar, Gadag</div></div>
-  <div style='text-align:center'><div class='ref'>Ref: ${b.ref}</div></div>
-  <div class='grid'>
-    <div class='sec'><h4>Customer</h4><p><strong>${b.customer_name}</strong></p><p>${b.customer_phone}</p><p>${b.customer_email}</p></div>
-    <div class='sec'><h4>Vehicle</h4><p><strong>${b.car_name}</strong></p><p>Rate: $${b.daily_rate}/day</p></div>
-  </div>
-  <table><thead><tr><th>Pickup</th><th>Return</th><th>Days</th><th>Rate</th><th>Total</th></tr></thead>
-  <tbody><tr><td>${b.pickup_date}</td><td>${b.return_date}</td><td>${b.total_days}</td><td>$${b.daily_rate}</td><td><strong>$${b.total_price}</strong></td></tr></tbody></table>
-  <div class='total'><div>Status: <strong>${b.status.toUpperCase()}</strong></div><div class='amt'>$${b.total_price}</div></div>
-  <div class='ft'><p>BENAKA TOURS AND TRAVELS · +91 81051 97768 · benakatravelsbusiness@gmail.com</p></div>
+    <div class="invoice-container">
+      <div class="header">
+        <div class="brand">
+          <h1>BENAKA TOURS and TRAVELS</h1>
+          <p>Luxurious Travel Experiences · Panchaxari Nagar, Gadag</p>
+          <p>Mob: +91 63624 16120 | benakatravelsbusiness@gmail.com</p>
+          ${isGST ? '<p><strong>GSTIN: 29XXXXXXXXXXXXX</strong></p>' : ''}
+        </div>
+        <div class="bill-title">
+          <h2>${isGST ? 'Tax Invoice' : 'Cash Bill'}</h2>
+          <div class="invoice-meta">
+            <p><strong>Invoice No:</strong> ${i.id}</p>
+            <p><strong>Date:</strong> ${i.created_at?.split('T')[0]}</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="info-grid">
+        <div class="info-sec">
+          <h4>Bill To</h4>
+          <p><strong>${i.company_name || i.client_name}</strong></p>
+          ${i.party_gstin ? `<p>GSTIN: ${i.party_gstin}</p>` : ''}
+          <p>${i.client_phone}</p>
+        </div>
+        <div class="info-sec" style="text-align:right">
+          <h4>Trip Details</h4>
+          <p><strong>Vehicle:</strong> ${i.car_model}</p>
+          <p><strong>Route:</strong> ${i.place_from || 'Local'} to ${i.place_to || 'Local'}</p>
+          <p><strong>Period:</strong> ${i.start_date} to ${i.end_date}</p>
+        </div>
+      </div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th width="40">Sl</th>
+            <th>Description</th>
+            <th style="text-align:right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>01</td>
+            <td>
+              <strong>Car Rental Charges</strong><br/>
+              <span style="font-size:11px; color:#666">
+                ${i.start_km ? `Reading: ${i.start_km} to ${i.end_km} Km` : ''} 
+                ${i.working_days ? `(${i.working_days} Days)` : ''}
+              </span>
+            </td>
+            <td style="text-align:right">${fmt(i.subtotal_paise)}</td>
+          </tr>
+          ${(i.driver_batta_paise > 0) ? `<tr><td>02</td><td>Driver Batta</td><td style="text-align:right">${fmt(i.driver_batta_paise)}</td></tr>` : ''}
+          ${(i.toll_gate_paise > 0) ? `<tr><td>03</td><td>Toll Gate / Parking</td><td style="text-align:right">${fmt(i.toll_gate_paise)}</td></tr>` : ''}
+          ${(i.fastag_paise > 0) ? `<tr><td>04</td><td>Fastag Charges</td><td style="text-align:right">${fmt(i.fastag_paise)}</td></tr>` : ''}
+          ${i.line_items?.map((li, idx) => li.amount_paise > 0 ? `<tr><td>0${idx+5}</td><td>${li.description}</td><td style="text-align:right">${fmt(li.amount_paise)}</td></tr>` : '').join('')}
+        </tbody>
+      </table>
+      
+      <div class="totals-sec">
+        <table class="totals-table">
+          <tr><td>Sub Total:</td><td>${fmt(i.subtotal_paise + (i.driver_batta_paise||0) + (i.toll_gate_paise||0) + (i.fastag_paise||0))}</td></tr>
+          ${isGST ? `
+            <tr><td>CGST (${i.cgst_rate}%):</td><td>${fmt(i.cgst_paise)}</td></tr>
+            <tr><td>SGST (${i.sgst_rate}%):</td><td>${fmt(i.sgst_paise)}</td></tr>
+          ` : ''}
+          <tr class="grand-total"><td>Total Amount:</td><td>${fmt(i.total_amount_paise)}</td></tr>
+          ${i.advance_paid_paise > 0 ? `<tr><td>Advance Paid:</td><td>${fmt(i.advance_paid_paise)}</td></tr>` : ''}
+          <tr><td><strong>Balance Due:</strong></td><td style="color:#ef4444">${fmt(i.total_amount_paise - (i.advance_paid_paise || 0))}</td></tr>
+        </table>
+      </div>
+      
+      <div class="bank-details">
+        <h4>Bank Details & Terms</h4>
+        <p><strong>Bank:</strong> Canara Bank | <strong>A/c:</strong> 1234567890 | <strong>IFSC:</strong> CNRB0001234</p>
+        <p style="margin-top:10px; font-style:italic">Thank you for choosing Benaka Tours and Travels! Please pay within 7 days of invoice date.</p>
+      </div>
+      
+      <div class="footer">
+        <p>Digital Invoice Generated by Benaka Admin Engine · +91 63624 16120</p>
+      </div>
+    </div>
   </body></html>`);
-  w.document.close(); setTimeout(() => w.print(), 300);
+  w.document.close();
+  setTimeout(() => w.print(), 500);
 }
 
 /* ══════════════ REVENUE CHART ══════════════ */
@@ -321,7 +424,24 @@ function BookingsPage() {
         body: JSON.stringify({ status })
       });
       const d = await r.json();
-      if (r.ok) { toast(d.message, 'success'); fetchAll(); }
+      if (r.ok) { toast(d.message || 'Status updated', 'success'); fetchAll(); }
+      else toast(d.error || 'Failed', 'error');
+    } catch { toast('Network error', 'error'); }
+  };
+
+  const endTrip = async (id, endKm, extraCharge, desc) => {
+    try {
+      const r = await fetch(`/api/admin/billing/invoices/${id}/end-trip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: TOKEN },
+        body: JSON.stringify({ end_km: parseInt(endKm), extra_charge_paise: Math.round(extraCharge * 100), description: desc })
+      });
+      const d = await r.json();
+      if (r.ok) { 
+        toast('Trip completed and car released!', 'success'); 
+        fetchAll(); 
+        setPage('billing'); // Redirect to billing to see the invoice
+      }
       else toast(d.error || 'Failed', 'error');
     } catch { toast('Network error', 'error'); }
   };
@@ -407,7 +527,7 @@ function BookingsPage() {
                       <div>→ {b.return_date}</div>
                     </td>
                     <td>{b.total_days}d</td>
-                    <td style={{ fontWeight: 700, color: '#34d399' }}>${b.total_price}</td>
+                    <td style={{ fontWeight: 700, color: '#34d399' }}>₹{b.total_price}</td>
                     <td><StatusPill status={b.status} /></td>
                     <td>
                       <div style={{ display: 'flex', gap: '.3rem', flexWrap: 'wrap' }}>
@@ -416,17 +536,31 @@ function BookingsPage() {
                           <button className="adm-btn adm-btn-danger adm-btn-sm" onClick={() => updateStatus(b.id, 'cancelled')} title="Cancel"><XCircle size={13} /></button>
                         </>}
                         {b.status === 'confirmed' && (
-                          <button className="adm-btn adm-btn-success adm-btn-sm" onClick={() => updateStatus(b.id, 'completed')} title="Mark trip done — releases car">✅ Trip Done</button>
+                          <button className="adm-btn adm-btn-success adm-btn-sm" onClick={() => {
+                            _setEndTripData(b);
+                            setShowEndTripModal(true);
+                          }} title="Complete trip & release car">🏁 End Trip</button>
                         )}
-                        <button className="adm-btn adm-btn-ghost adm-btn-sm" onClick={() => printAdminInvoice(b)} title="Print invoice" style={{ color: '#a78bfa' }}>
+                        <button className="adm-btn adm-btn-ghost adm-btn-sm" onClick={() => {
+                          const mockInvoice = {
+                            id: b.ref,
+                            bill_type: 'NON_GST',
+                            client_name: b.customer_name,
+                            client_phone: b.customer_phone,
+                            car_model: b.car_name,
+                            subtotal_paise: b.total_price * 100,
+                            total_amount_paise: b.total_price * 100,
+                            start_date: b.pickup_date,
+                            end_date: b.return_date,
+                            created_at: new Date().toISOString()
+                          };
+                          printProfessionalInvoice(mockInvoice);
+                        }} title="Print Quick Bill" style={{ color: '#a78bfa' }}>
                           <Printer size={13} />
                         </button>
-                        <a href={whatsappLink(b.customer_phone, `Hi ${b.customer_name}! BENAKA TRAVELS: This is an update on your booking ${b.ref} for the ${b.car_name} (${b.pickup_date} to ${b.return_date}). Status is now: ${b.status.toUpperCase()}. Total amount: $${b.total_price}. Please let us know if you have any questions!`)} target="_blank" rel="noreferrer" className="adm-btn adm-btn-ghost adm-btn-sm" style={{ color: '#25D366' }} title="WhatsApp Update">
+                        <a href={whatsappLink(b.customer_phone, `Hi ${b.customer_name}! BENAKA TRAVELS: This is an update on your booking ${b.ref} for the ${b.car_name} (${b.pickup_date} to ${b.return_date}). Status is now: ${b.status.toUpperCase()}. Total amount: ₹${b.total_price}. Please let us know if you have any questions!`)} target="_blank" rel="noreferrer" className="adm-btn adm-btn-ghost adm-btn-sm" style={{ color: '#25D366' }} title="WhatsApp Update">
                           <MessageCircle size={13} />
                         </a>
-                        {(b.status === 'cancelled' || b.status === 'completed') && (
-                          <button className="adm-btn adm-btn-danger adm-btn-sm" onClick={() => deleteBooking(b.id, b.ref)} title="Delete"><Trash2 size={13} /></button>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -447,7 +581,7 @@ function BookingsPage() {
                 <label>Vehicle *</label>
                 <select required className="adm-input" value={form.car_id} onChange={e => setForm({ ...form, car_id: e.target.value })}>
                   <option value="">Choose vehicle...</option>
-                  {cars.map(c => <option key={c.id} value={c.id}>{c.name} — ${c.price}/day</option>)}
+                  {cars.map(c => <option key={c.id} value={c.id}>{c.name} — ₹{c.price}/day</option>)}
                 </select>
               </div>
               <div className="adm-form-row">
@@ -787,7 +921,7 @@ function SettingsPage() {
           <div className="adm-panel-header"><span className="adm-panel-title">Business Details</span></div>
           <div className="adm-panel-body">
             <form onSubmit={save}>
-              {[['Business Name', 'BENAKA TRAVELS'], ['Contact Email', 'info@benakatravels.com'], ['Phone', '+91 98765 43210'], ['Address', 'Bengaluru, Karnataka']].map(([l, v]) => (
+              {[['Business Name', 'BENAKA TRAVELS'], ['Contact Email', 'benakatravelsbusiness@gmail.com'], ['Phone', '+91 6362416120'], ['Address', 'Panchaxari Nagar, Gadag']].map(([l, v]) => (
                 <div key={l} className="adm-form-group"><label>{l}</label><input className="adm-input" defaultValue={v} /></div>
               ))}
               <button type="submit" className="adm-btn adm-btn-primary">{saved ? '✅ Saved' : 'Save'}</button>
@@ -834,10 +968,251 @@ function SupportPage() {
 /* ══════════════════════════════════════════════════
    BILLING ENGINE PAGE (Iframe Embed)
 ══════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════
+   BILLING ENGINE PAGE (Native Implementation)
+   Goal: Replace iframe with robust React UI
+══════════════════════════════════════════════════ */
 function BillingEnginePage() {
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [showAddClient, setShowAddClient] = useState(false);
+  const [cars, setCars] = useState([]);
+  const [clients, setClients] = useState([]);
+  
+  // Create Invoice State
+  const [form, setForm] = useState({
+    client_id: '', car_id: '', bill_type: 'NON_GST', company_name: '', party_gstin: '',
+    place_from: '', place_to: '', working_days: '', start_date: '', end_date: '',
+    start_km: '', end_km: '', extra_km_rate: '', avg_monthly_rate: '',
+    driver_extra_duty: '', driver_batta: '', toll_gate: '', fastag: '',
+    cgst_rate: 9, sgst_rate: 9, advance_paid: 0
+  });
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [ir, cr, clr] = await Promise.all([
+        fetch('/api/admin/billing/invoices', { headers: { Authorization: TOKEN } }),
+        fetch('/api/admin/cars', { headers: { Authorization: TOKEN } }),
+        fetch('/api/admin/billing/clients', { headers: { Authorization: TOKEN } })
+      ]);
+      const idata = await ir.json(); if (idata.success) setInvoices(idata.data.invoices);
+      const cdata = await cr.json(); if (Array.isArray(cdata)) setCars(cdata);
+      const cldata = await clr.json(); if (cldata.success) setClients(cldata.data.clients);
+    } catch {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const payload = {
+      ...form,
+      client_id: parseInt(form.client_id),
+      car_id: parseInt(form.car_id),
+      subtotal_paise: 0, // Simplified for now, backend will recalc if needed or I add line items
+      line_items: [{ description: 'Base Rental', amount_paise: 0 }],
+      advance_paid_paise: Math.round(form.advance_paid * 100),
+      driver_batta_paise: Math.round(form.driver_batta * 100),
+      toll_gate_paise: Math.round(form.toll_gate * 100),
+      fastag_paise: Math.round(form.fastag * 100),
+    };
+    
+    try {
+      const r = await fetch('/api/admin/billing/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: TOKEN },
+        body: JSON.stringify(payload)
+      });
+      if (r.ok) {
+        toast('Invoice generated successfully', 'success');
+        setShowCreate(false);
+        fetchAll();
+      } else {
+        const d = await r.json();
+        toast(d.error || 'Failed', 'error');
+      }
+    } catch { toast('Network error', 'error'); }
+  };
+
+  const deleteInvoice = async (id) => {
+    if (!confirm('Permanent delete this invoice?')) return;
+    try {
+      const r = await fetch(`/api/admin/billing/invoices/${id}`, { method: 'DELETE', headers: { Authorization: TOKEN } });
+      if (r.ok) { toast('Invoice deleted', 'success'); fetchAll(); }
+    } catch { toast('Network error', 'error'); }
+  };
+
+      {showCreate && <InvoiceFormModal 
+        onClose={() => setShowCreate(false)} 
+        onSuccess={() => { setShowCreate(false); fetchAll(); }}
+        cars={cars}
+        clients={clients}
+        onAddClient={() => { setShowCreate(false); setShowAddClient(true); }}
+      />}
+
+      {showAddClient && <ClientFormModal
+        onClose={() => setShowAddClient(false)}
+        onSuccess={() => { setShowAddClient(false); fetchAll(); setShowCreate(true); }}
+      />}
+    </div>
+  );
+}
+
+function InvoiceFormModal({ onClose, onSuccess, cars, clients, onAddClient }) {
+  const [form, setForm] = useState({
+    client_id: '', car_id: '', bill_type: 'NON_GST', company_name: '', party_gstin: '',
+    place_from: '', place_to: '', working_days: '', start_date: '', end_date: '',
+    start_km: '', end_km: '', extra_km_rate: '', avg_monthly_rate: '',
+    driver_extra_duty: '', driver_batta: '', toll_gate: '', fastag: '',
+    cgst_rate: 9, sgst_rate: 9, advance_paid: 0
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const payload = {
+      ...form,
+      client_id: parseInt(form.client_id),
+      car_id: parseInt(form.car_id),
+      subtotal_paise: 0, 
+      line_items: [{ description: 'Base Rental', amount_paise: 0 }],
+      advance_paid_paise: Math.round(form.advance_paid * 100),
+      driver_batta_paise: Math.round(form.driver_batta * 100),
+      toll_gate_paise: Math.round(form.toll_gate * 100),
+      fastag_paise: Math.round(form.fastag * 100),
+    };
+    
+    try {
+      const r = await fetch('/api/admin/billing/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: TOKEN },
+        body: JSON.stringify(payload)
+      });
+      if (r.ok) {
+        toast('Invoice generated successfully', 'success');
+        onSuccess();
+      } else {
+        const d = await r.json();
+        toast(d.error || 'Failed', 'error');
+      }
+    } catch { toast('Network error', 'error'); }
+  };
+
   return (
-    <div style={{ height: 'calc(100vh - 120px)', width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
-      <iframe src="/billing/index.html" frameBorder="0" width="100%" height="100%" title="Billing System"></iframe>
+    <div className="adm-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="adm-modal" style={{ maxWidth: '800px' }}>
+        <div className="adm-modal-hd"><h3>Create New Invoice / Manual Booking</h3><button className="adm-modal-close" onClick={onClose}><X size={15} /></button></div>
+        <form onSubmit={handleSubmit} className="billing-form" style={{ padding: '0 1.5rem 1.5rem' }}>
+          <div className="adm-form-row">
+            <div className="adm-form-group">
+              <label>Bill Type</label>
+              <select className="adm-input" value={form.bill_type} onChange={e => setForm({...form, bill_type: e.target.value})}>
+                <option value="NON_GST">Cash Bill (Non-GST)</option>
+                <option value="GST">Tax Invoice (GST)</option>
+              </select>
+            </div>
+            <div className="adm-form-group">
+              <label style={{ display: 'flex', justifyContent: 'space-between' }}>
+                Select Customer 
+                <button type="button" onClick={onAddClient} style={{ background: 'none', border: 'none', color: '#10b981', fontSize: '.75rem', cursor: 'pointer', fontWeight: 700 }}>+ Add New</button>
+              </label>
+              <select required className="adm-input" value={form.client_id} onChange={e => setForm({...form, client_id: e.target.value})}>
+                <option value="">-- Choose Party --</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.full_name} ({c.phone_number})</option>)}
+              </select>
+            </div>
+          </div>
+
+          {form.bill_type === 'GST' && (
+            <div className="adm-form-row">
+              <div className="adm-form-group"><label>Company Name (M/s)</label><input className="adm-input" placeholder="Party's Company Name" value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} /></div>
+              <div className="adm-form-group"><label>Party GSTIN</label><input className="adm-input" placeholder="29XXXXX..." value={form.party_gstin} onChange={e => setForm({...form, party_gstin: e.target.value})} /></div>
+            </div>
+          )}
+
+          <div className="adm-form-row">
+            <div className="adm-form-group">
+              <label>Vehicle</label>
+              <select required className="adm-input" value={form.car_id} onChange={e => setForm({...form, car_id: e.target.value})}>
+                <option value="">-- Select Car --</option>
+                {cars.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div className="adm-form-group"><label>Working Days</label><input type="number" className="adm-input" value={form.working_days} onChange={e => setForm({...form, working_days: e.target.value})} /></div>
+          </div>
+
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>Start Date</label><input type="date" className="adm-input" value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} /></div>
+            <div className="adm-form-group"><label>End Date</label><input type="date" className="adm-input" value={form.end_date} onChange={e => setForm({...form, end_date: e.target.value})} /></div>
+          </div>
+
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>Place From</label><input className="adm-input" value={form.place_from} onChange={e => setForm({...form, place_from: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Place To</label><input className="adm-input" value={form.place_to} onChange={e => setForm({...form, place_to: e.target.value})} /></div>
+          </div>
+
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>Driver Batta (₹)</label><input type="number" className="adm-input" value={form.driver_batta} onChange={e => setForm({...form, driver_batta: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Toll / Parking (₹)</label><input type="number" className="adm-input" value={form.toll_gate} onChange={e => setForm({...form, toll_gate: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Fastag (₹)</label><input type="number" className="adm-input" value={form.fastag} onChange={e => setForm({...form, fastag: e.target.value})} /></div>
+          </div>
+
+          {form.bill_type === 'GST' && (
+            <div className="adm-form-row">
+              <div className="adm-form-group"><label>CGST Rate (%)</label><input type="number" step="0.5" className="adm-input" value={form.cgst_rate} onChange={e => setForm({...form, cgst_rate: e.target.value})} /></div>
+              <div className="adm-form-group"><label>SGST Rate (%)</label><input type="number" step="0.5" className="adm-input" value={form.sgst_rate} onChange={e => setForm({...form, sgst_rate: e.target.value})} /></div>
+            </div>
+          )}
+
+          <div className="adm-form-row" style={{ marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1rem' }}>
+            <div className="adm-form-group"><label>Advance Received (₹)</label><input type="number" className="adm-input" value={form.advance_paid} onChange={e => setForm({...form, advance_paid: e.target.value})} /></div>
+            <div style={{ flex: 2, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', gap: '1rem' }}>
+              <button type="button" className="adm-btn adm-btn-ghost" onClick={onClose}>Cancel</button>
+              <button type="submit" className="adm-btn adm-btn-primary">Generate Final Invoice</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ClientFormModal({ onClose, onSuccess }) {
+  const [form, setForm] = useState({ full_name: '', phone_number: '', email: '', driving_license_number: '', gstin: '' });
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const r = await fetch('/api/admin/billing/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: TOKEN },
+        body: JSON.stringify(form)
+      });
+      if (r.ok) { toast('Client added!', 'success'); onSuccess(); }
+      else { const d = await r.json(); toast(d.error || 'Failed', 'error'); }
+    } catch { toast('Network error', 'error'); }
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="adm-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="adm-modal">
+        <div className="adm-modal-hd"><h3>Add New Client</h3><button className="adm-modal-close" onClick={onClose}><X size={15} /></button></div>
+        <form onSubmit={handleSubmit} style={{ padding: '0 1.5rem 1.5rem' }}>
+          <div className="adm-form-group"><label>Full Name *</label><input required className="adm-input" value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} /></div>
+          <div className="adm-form-group"><label>Phone Number *</label><input required className="adm-input" value={form.phone_number} onChange={e => setForm({...form, phone_number: e.target.value})} /></div>
+          <div className="adm-form-group"><label>Email</label><input type="email" className="adm-input" value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
+          <div className="adm-form-group"><label>GSTIN (Optional)</label><input className="adm-input" value={form.gstin} onChange={e => setForm({...form, gstin: e.target.value})} /></div>
+          <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
+            <button type="button" className="adm-btn adm-btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="adm-btn adm-btn-primary" disabled={submitting}>{submitting ? 'Saving...' : 'Save Client'}</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -846,16 +1221,41 @@ function BillingEnginePage() {
    ROOT
 ══════════════════════════════════════════════════ */
 export default function AdminDashboard() {
+  const [isAuthorized, setIsAuthorized] = useState(sessionStorage.getItem('benaka_admin_auth') === 'true');
   const [page, setPage] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
+  // Modals state
+  const [showEndTripModal, setShowEndTripModal] = useState(false);
+  const [endTripData, setEndTripData] = useState(null);
+
   useEffect(() => {
+    _setShowEndTripModal = setShowEndTripModal;
+    _setEndTripData = setEndTripData;
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthorized) return;
     fetch('/api/admin/stats', { headers: { Authorization: TOKEN } })
       .then(r => r.json())
       .then(d => setPendingCount(d.pendingBookings || 0))
       .catch(() => {});
-  }, [page]);
+  }, [page, isAuthorized]);
+
+  if (!isAuthorized) {
+    return (
+      <>
+        <ToastHub />
+        <LoginScreen onLogin={() => setIsAuthorized(true)} />
+      </>
+    );
+  }
+
+  const logout = () => {
+    sessionStorage.removeItem('benaka_admin_auth');
+    setIsAuthorized(false);
+  };
 
   const navItems = [
     { key: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={17} /> },
@@ -881,6 +1281,53 @@ export default function AdminDashboard() {
     <div className="adm-layout">
       <ToastHub />
 
+      {/* Global End Trip Modal */}
+      {showEndTripModal && endTripData && (
+        <div className="adm-modal-overlay" onClick={e => e.target === e.currentTarget && setShowEndTripModal(false)}>
+          <div className="adm-modal">
+            <div className="adm-modal-hd"><h3>End Trip: {endTripData.car_name}</h3><button className="adm-modal-close" onClick={() => setShowEndTripModal(false)}><X size={15} /></button></div>
+            <div className="adm-panel-body">
+              <p style={{ fontSize: '.85rem', color: 'rgba(255,255,255,.5)', marginBottom: '1rem' }}>Closing trip for {endTripData.customer_name}. Vehicle will be marked as available.</p>
+              <div className="adm-form-group">
+                <label>Closing KM Reading</label>
+                <input type="number" className="adm-input" placeholder="Enter final odometer reading" id="end-km-input" />
+              </div>
+              <div className="adm-form-group">
+                <label>Extra Charges (₹) - Optional</label>
+                <input type="number" className="adm-input" placeholder="Extra charges if any" id="extra-charge-input" />
+              </div>
+              <div className="adm-form-group">
+                <label>Charge Reason</label>
+                <input className="adm-input" placeholder="e.g. Extra hours, cleaning" id="extra-desc-input" />
+              </div>
+              <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                <button className="adm-btn adm-btn-ghost" onClick={() => setShowEndTripModal(false)}>Cancel</button>
+                <button className="adm-btn adm-btn-success" onClick={() => {
+                  const km = document.getElementById('end-km-input').value;
+                  const charge = document.getElementById('extra-charge-input').value || 0;
+                  const desc = document.getElementById('extra-desc-input').value;
+                  if (!km) return toast('End KM is required', 'error');
+                  
+                  fetch(`/api/admin/billing/invoices/${endTripData.id}/end-trip`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: TOKEN },
+                    body: JSON.stringify({ end_km: parseInt(km), extra_charge_paise: Math.round(charge * 100), description: desc })
+                  }).then(r => r.json()).then(d => {
+                    if (d.success) {
+                      toast('Trip completed successfully!', 'success');
+                      setShowEndTripModal(false);
+                      setPage('billing');
+                    } else {
+                      toast(d.error || 'Failed', 'error');
+                    }
+                  });
+                }}>Complete Trip & Invoice</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <aside className={`adm-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="adm-sidebar-brand">
           <div className="adm-brand-name">🚗 <span className="dot">BENAKA</span> ADMIN</div>
@@ -897,6 +1344,7 @@ export default function AdminDashboard() {
           <div className="adm-nav-section">System</div>
           <button className={`adm-nav-item ${page === 'settings' ? 'active' : ''}`} onClick={() => { setPage('settings'); setSidebarOpen(false); }}><Settings size={17} /> Settings</button>
           <button className={`adm-nav-item ${page === 'support' ? 'active' : ''}`} onClick={() => { setPage('support'); setSidebarOpen(false); }}><HelpCircle size={17} /> Support</button>
+          <button className="adm-nav-item" style={{ marginTop: 'auto', color: '#ef4444' }} onClick={logout}><XCircle size={17} /> Logout</button>
         </nav>
         <div className="adm-sidebar-footer">
           <Link to="/" className="adm-user-card">
@@ -934,6 +1382,62 @@ export default function AdminDashboard() {
         {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
       {sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 99 }} />}
+    </div>
+  );
+}
+
+function LoginScreen({ onLogin }) {
+  const [pass, setPass] = useState('');
+  const [err, setErr] = useState(false);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (pass === 'benakaAdmin2026') {
+      sessionStorage.setItem('benaka_admin_auth', 'true');
+      onLogin();
+    } else {
+      setErr(true);
+      toast('Invalid Admin Password', 'error');
+      setTimeout(() => setErr(false), 2000);
+    }
+  };
+
+  return (
+    <div className="adm-login-wrap" style={{ 
+      height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+      background: '#0a0a0b', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif'
+    }}>
+      <div className="adm-login-card" style={{ 
+        width: '100%', maxWidth: '400px', padding: '3rem', background: '#111113', 
+        borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)',
+        boxShadow: '0 40px 100px rgba(0,0,0,0.5)', textAlign: 'center'
+      }}>
+        <div style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>🚗</div>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.5rem', letterSpacing: '-0.02em' }}>BENAKA ADMIN</h1>
+        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem', marginBottom: '2.5rem' }}>Secure Fleet Management Access</p>
+        
+        <form onSubmit={handleLogin}>
+          <div className="adm-form-group" style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Access Password</label>
+            <input 
+              type="password" 
+              className={`adm-input ${err ? 'err' : ''}`} 
+              autoFocus 
+              placeholder="••••••••"
+              value={pass}
+              onChange={e => setPass(e.target.value)}
+              style={{ padding: '0.875rem 1rem', fontSize: '1rem', letterSpacing: '0.1em' }}
+            />
+          </div>
+          <button type="submit" className="adm-btn adm-btn-primary" style={{ width: '100%', padding: '1rem', fontSize: '1rem', fontWeight: 700, borderRadius: '12px' }}>
+            Unlock Dashboard
+          </button>
+        </form>
+        
+        <div style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <Link to="/" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', textDecoration: 'none' }}>← Return to Homepage</Link>
+        </div>
+      </div>
     </div>
   );
 }

@@ -85,7 +85,7 @@ export default function BookingModal({ car, onClose, onBooked }) {
         </tbody>
       </table>
       <div class="total"><div class="total-label">Pickup: ${invoice.pickup_date} &rarr; Return: ${invoice.return_date}</div><div class="total-amount">$${invoice.total_price}</div></div>
-      <div class="footer"><p>Thank you for choosing BENAKA TOURS AND TRAVELS!</p><p>📞 +91 81051 97768 · 📧 benakatravelsbusiness@gmail.com</p><p style="margin-top:8px">Our team will contact you within 30 minutes to confirm.</p></div>
+      <div class="footer"><p>Thank you for choosing BENAKA TOURS AND TRAVELS!</p><p>📞 +91 63624 16120 · 📧 benakatravelsbusiness@gmail.com</p><p style="margin-top:8px">Our team will contact you within 30 minutes to confirm.</p></div>
     </body></html>`);
     w.document.close();
     setTimeout(() => w.print(), 300);
@@ -120,7 +120,7 @@ export default function BookingModal({ car, onClose, onBooked }) {
                 </div>
                 <div className="form-group">
                   <label>Phone Number *</label>
-                  <input className="form-input" required value={form.customer_phone} onChange={e => setForm({ ...form, customer_phone: e.target.value })} placeholder="+91 81051 97768" />
+                  <input className="form-input" required value={form.customer_phone} onChange={e => setForm({ ...form, customer_phone: e.target.value })} placeholder="+91 63624 16120" />
                 </div>
               </div>
 

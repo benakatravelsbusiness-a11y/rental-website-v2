@@ -12,8 +12,8 @@ async function generateInvoiceId(db: D1Database): Promise<string> {
   return `${prefix}${nextSeq.toString().padStart(4, '0')}`;
 }
 
-function calculateGST(subtotalPaise: number): number {
-  return Math.round((subtotalPaise * 18) / 100);
+function calculateGST(subtotalPaise: number, rate: number): number {
+  return Math.round((subtotalPaise * rate) / 100);
 }
 
 invoiceRoutes.get('/', async (c) => {
@@ -64,8 +64,9 @@ invoiceRoutes.post('/', async (c) => {
   const db = c.env.DB;
   const body = await c.req.json<CreateInvoiceRequest>();
 
-  if (!body.client_id || !body.car_id || !body.start_date || !body.end_date) return c.json<ApiResponse>({ success: false, error: 'client_id, car_id, start_date, and end_date are required' }, 400);
-  if (!body.line_items || body.line_items.length === 0) return c.json<ApiResponse>({ success: false, error: 'At least one line item is required' }, 400);
+  if (!body.client_id || !body.car_id || !body.start_date || !body.end_date) {
+    return c.json<ApiResponse>({ success: false, error: 'client_id, car_id, start_date, and end_date are required' }, 400);
+  }
 
   const client = await db.prepare('SELECT id FROM clients WHERE id = ?').bind(body.client_id).first();
   if (!client) return c.json<ApiResponse>({ success: false, error: 'Client not found' }, 404);
@@ -74,9 +75,15 @@ invoiceRoutes.post('/', async (c) => {
   if (!vehicle) return c.json<ApiResponse>({ success: false, error: 'Vehicle not found' }, 404);
 
   const invoiceId = await generateInvoiceId(db);
-  const subtotalPaise = body.line_items.reduce((sum, item) => sum + item.amount_paise, 0);
-  const taxPaise = calculateGST(subtotalPaise);
-  const totalAmountPaise = subtotalPaise + taxPaise;
+  const subtotalPaise = (body.line_items || []).reduce((sum, item) => sum + item.amount_paise, 0);
+  
+  // Tax Logic
+  const cgstRate = body.cgst_rate ?? 9.0;
+  const sgstRate = body.sgst_rate ?? 9.0;
+  const cgstPaise = body.bill_type === 'GST' ? calculateGST(subtotalPaise, cgstRate) : 0;
+  const sgstPaise = body.bill_type === 'GST' ? calculateGST(subtotalPaise, sgstRate) : 0;
+  
+  const totalAmountPaise = subtotalPaise + cgstPaise + sgstPaise;
   const advancePaidPaise = body.advance_paid_paise || 0;
 
   let status = body.status || 'Unpaid';
@@ -84,13 +91,39 @@ invoiceRoutes.post('/', async (c) => {
   else if (advancePaidPaise > 0) status = 'Partially Paid';
 
   const statements: D1PreparedStatement[] = [];
-  statements.push(db.prepare(`INSERT INTO invoices (id, client_id, car_id, start_date, end_date, start_km, end_km, subtotal_paise, tax_paise, total_amount_paise, advance_paid_paise, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(invoiceId, body.client_id, body.car_id, body.start_date, body.end_date, body.start_km ?? null, body.end_km ?? null, subtotalPaise, taxPaise, totalAmountPaise, advancePaidPaise, status));
-  for (const item of body.line_items) statements.push(db.prepare(`INSERT INTO invoice_line_items (invoice_id, description, amount_paise) VALUES (?, ?, ?)`).bind(invoiceId, item.description, item.amount_paise));
+  statements.push(db.prepare(`
+    INSERT INTO invoices (
+      id, client_id, car_id, bill_type, company_name, party_gstin, place_from, place_to, working_days,
+      start_date, end_date, start_km, end_km, subtotal_paise, extra_km_rate_paise, avg_monthly_rate_paise,
+      driver_extra_duty_paise, driver_batta_paise, toll_gate_paise, fastag_paise,
+      cgst_rate, sgst_rate, cgst_paise, sgst_paise, total_amount_paise, advance_paid_paise, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    invoiceId, body.client_id, body.car_id, body.bill_type, body.company_name || null, body.party_gstin || null,
+    body.place_from || null, body.place_to || null, body.working_days || null,
+    body.start_date, body.end_date, body.start_km ?? null, body.end_km ?? null,
+    subtotalPaise, body.extra_km_rate_paise || 0, body.avg_monthly_rate_paise || 0,
+    body.driver_extra_duty_paise || 0, body.driver_batta_paise || 0, body.toll_gate_paise || 0, body.fastag_paise || 0,
+    cgstRate, sgstRate, cgstPaise, sgstPaise, totalAmountPaise, advancePaidPaise, status
+  ));
+
+  if (body.line_items && body.line_items.length > 0) {
+    for (const item of body.line_items) {
+      statements.push(db.prepare(`INSERT INTO invoice_line_items (invoice_id, description, amount_paise) VALUES (?, ?, ?)`).bind(invoiceId, item.description, item.amount_paise));
+    }
+  }
+
   statements.push(db.prepare(`UPDATE cars SET available = 0 WHERE id = ?`).bind(body.car_id));
 
   await db.batch(statements);
 
-  const createdInvoice = await db.prepare(`SELECT i.*, c.full_name as client_name, f.name as car_model, '' as registration_number FROM invoices i JOIN clients c ON i.client_id = c.id JOIN cars f ON i.car_id = f.id WHERE i.id = ?`).bind(invoiceId).first();
+  const createdInvoice = await db.prepare(`
+    SELECT i.*, c.full_name as client_name, f.name as car_model, '' as registration_number 
+    FROM invoices i 
+    JOIN clients c ON i.client_id = c.id 
+    JOIN cars f ON i.car_id = f.id 
+    WHERE i.id = ?
+  `).bind(invoiceId).first();
   const lineItems = await db.prepare('SELECT * FROM invoice_line_items WHERE invoice_id = ?').bind(invoiceId).all();
 
   return c.json<ApiResponse>({ success: true, data: { ...createdInvoice, line_items: lineItems.results } }, 201);
@@ -145,10 +178,16 @@ invoiceRoutes.post('/:id/end-trip', async (c) => {
     newSubtotal += body.extra_charge_paise;
   }
 
-  const taxPaise = calculateGST(newSubtotal);
-  const totalAmountPaise = newSubtotal + taxPaise;
+  // Proper GST calculation on trip end
+  const cgstPaise = invoice.bill_type === 'GST' ? calculateGST(newSubtotal, invoice.cgst_rate) : 0;
+  const sgstPaise = invoice.bill_type === 'GST' ? calculateGST(newSubtotal, invoice.sgst_rate) : 0;
+  const totalAmountPaise = newSubtotal + cgstPaise + sgstPaise;
 
-  statements.push(db.prepare(`UPDATE invoices SET end_km = ?, subtotal_paise = ?, tax_paise = ?, total_amount_paise = ? WHERE id = ?`).bind(body.end_km, newSubtotal, taxPaise, totalAmountPaise, id));
+  statements.push(db.prepare(`
+    UPDATE invoices 
+    SET end_km = ?, subtotal_paise = ?, cgst_paise = ?, sgst_paise = ?, total_amount_paise = ? 
+    WHERE id = ?
+  `).bind(body.end_km, newSubtotal, cgstPaise, sgstPaise, totalAmountPaise, id));
   statements.push(db.prepare(`UPDATE cars SET available = 1 WHERE id = ?`).bind(invoice.car_id));
 
   await db.batch(statements);

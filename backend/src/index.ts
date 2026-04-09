@@ -308,10 +308,10 @@ app.get('/api/admin/revenue-chart', async (c) => {
   }
 });
 
-// ─── BILLING SUB-APP ROUTES ──────────────────────────────────────────────────
-app.route('/api/billing/dashboard', dashboardRoutes);
-app.route('/api/billing/fleet', fleetRoutes);
-app.route('/api/billing/clients', clientRoutes);
-app.route('/api/billing/invoices', invoiceRoutes);
+// ─── BILLING SUB-APP ROUTES (Admin Protected) ────────────────────────────────
+app.route('/api/admin/billing/dashboard', dashboardRoutes);
+app.route('/api/admin/billing/fleet', fleetRoutes);
+app.route('/api/admin/billing/clients', clientRoutes);
+app.route('/api/admin/billing/invoices', invoiceRoutes);
 
 export default app;

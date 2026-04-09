@@ -77,7 +77,7 @@ export default function ClientHome() {
               onClick={() => document.getElementById('fleet')?.scrollIntoView({ behavior: 'smooth' })}>
               Explore Fleet <ChevronRight size={18} />
             </button>
-            <a href="tel:+918105197768" className="btn btn-outline">
+            <a href="tel:+916362416120" className="btn btn-outline">
               <Phone size={16} /> Call Now
             </a>
           </div>
@@ -162,10 +162,10 @@ export default function ClientHome() {
                   </div>
                   <p className="car-features-text">{car.features}</p>
                   <div className="car-footer" style={{ borderTop: '1px solid var(--border)', paddingTop: '.9rem', display: 'flex', gap: '.5rem' }}>
-                    <a href="https://wa.me/918105197768" target="_blank" rel="noreferrer" className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
+                    <a href="https://wa.me/916362416120" target="_blank" rel="noreferrer" className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
                       <Phone size={14} style={{ marginRight: '4px' }} /> WhatsApp
                     </a>
-                    <a href="tel:+918105197768" className="btn btn-outline btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
+                    <a href="tel:+916362416120" className="btn btn-outline btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
                       <Phone size={14} style={{ marginRight: '4px' }} /> Call Now
                     </a>
                   </div>
@@ -282,8 +282,8 @@ export default function ClientHome() {
           }}>
             <h4 className="serif" style={{ color: 'var(--gold)', marginBottom: '1rem', fontSize: '1.1rem' }}>Contact Us</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <a href="tel:+918105197768" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem', color: '#fff' }}>
-                <span style={{ color: 'var(--gold)' }}>📞</span> +91 81051 97768
+              <a href="tel:+916362416120" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem', color: '#fff' }}>
+                <span style={{ color: 'var(--gold)' }}>📞</span> +91 63624 16120
               </a>
               <a href="mailto:benakatravelsbusiness@gmail.com" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem', color: '#fff' }}>
                 <span style={{ color: 'var(--gold)' }}>✉️</span> benakatravelsbusiness@gmail.com
@@ -314,9 +314,9 @@ export default function ClientHome() {
               Karnataka's most trusted luxury car rental platform. Premium vehicles, professional service, memorable journeys — since 2019.
             </p>
             <div className="footer-socials">
-              <a href="https://wa.me/918105197768" target="_blank" rel="noreferrer" className="footer-social" title="WhatsApp">📱</a>
+              <a href="https://wa.me/916362416120" target="_blank" rel="noreferrer" className="footer-social" title="WhatsApp">📱</a>
               <a href="mailto:benakatravelsbusiness@gmail.com" className="footer-social" title="Email">📧</a>
-              <a href="tel:+918105197768" className="footer-social" title="Call">📞</a>
+              <a href="tel:+916362416120" className="footer-social" title="Call">📞</a>
               <a href="#" className="footer-social" title="Instagram">📸</a>
             </div>
           </div>
@@ -341,7 +341,7 @@ export default function ClientHome() {
           <div>
             <h5>Contact</h5>
             <ul>
-              <li><a href="tel:+918105197768">+91 81051 97768</a></li>
+              <li><a href="tel:+916362416120">+91 63624 16120</a></li>
               <li><a href="mailto:benakatravelsbusiness@gmail.com">benakatravelsbusiness@gmail.com</a></li>
               <li><a>Panchaxari Nagar, Gadag, Karnataka</a></li>
               <li><a>Open 24 Hours (Mon–Sun)</a></li>

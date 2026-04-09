@@ -357,6 +357,11 @@
 .adm-input::placeholder { color: rgba(255,255,255,.25); }
 .adm-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
 
+/* ── BILLING SPECIFIC ── */
+.billing-form { display: flex; flex-direction: column; gap: .5rem; }
+.billing-engine .adm-table td { font-size: .82rem; }
+.billing-engine .adm-btn-ghost { border-color: rgba(255,255,255,.05); }
+
 /* ── MODAL ────────────────────────────────────────── */
 .adm-modal-overlay {
   position: fixed; inset: 0;
@@ -399,6 +404,13 @@
 }
 .adm-search:focus { outline: none; border-color: #10b981; }
 .adm-search::placeholder { color: rgba(255,255,255,.3); }
+
+/* ── PRINT OVERRIDES ── */
+@media print {
+  .adm-sidebar, .adm-topbar, .adm-mobile-toggle, .adm-btn, .adm-toast-wrap { display: none !important; }
+  .adm-main { margin-left: 0 !important; }
+  .adm-content { padding: 0 !important; }
+}
 
 /* ── REVENUE CHART ────────────────────────────────── */
 .revenue-chart-wrap { padding: 1rem 1.5rem 1.5rem; }
