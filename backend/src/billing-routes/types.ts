@@ -40,6 +40,17 @@ export interface Invoice {
   sgst_paise: number;
   total_amount_paise: number;
   advance_paid_paise: number;
+  total_km: number | null;
+  extra_km_qty: number;
+  extra_km_total_paise: number;
+  driver_extra_duty_hours: number;
+  driver_extra_duty_rate_paise: number;
+  driver_extra_duty_total_paise: number;
+  amount_for_days_paise: number;
+  qty_avg_per_month: number;
+  km_limit_per_day: number;
+  vehicle_no_override: string | null;
+  trip_description: string | null;
   status: 'Draft' | 'Unpaid' | 'Partially Paid' | 'Paid';
   created_at: string;
 }
@@ -87,6 +98,17 @@ export interface CreateInvoiceRequest {
   cgst_rate?: number;
   sgst_rate?: number;
   advance_paid_paise?: number;
+  total_km?: number;
+  extra_km_qty?: number;
+  extra_km_total_paise?: number;
+  driver_extra_duty_hours?: number;
+  driver_extra_duty_rate_paise?: number;
+  driver_extra_duty_total_paise?: number;
+  amount_for_days_paise?: number;
+  qty_avg_per_month?: number;
+  km_limit_per_day?: number;
+  vehicle_no_override?: string;
+  trip_description?: string;
   status?: 'Draft' | 'Unpaid' | 'Partially Paid' | 'Paid';
   line_items: CreateInvoiceLineItem[];
 }

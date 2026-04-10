@@ -60,127 +60,223 @@ function exportCSV(rows, filename) {
 function printProfessionalInvoice(invoiceData) {
   const i = invoiceData;
   const isGST = i.bill_type === 'GST';
-  
-  // Format currency
   const fmt = (paise) => `₹${((paise || 0) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-  
+
   const w = window.open('', '_blank');
-  w.document.write(`<!DOCTYPE html><html><head><title>Invoice ${i.id}</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:'Inter', sans-serif;padding:40px;color:#111;line-height:1.5;background:#fff}
-    .invoice-container{max-width:800px;margin:0 auto;border:1px solid #eee;padding:40px;box-shadow:0 0 20px rgba(0,0,0,0.05)}
-    .header{display:flex;justify-content:space-between;border-bottom:2px solid #10b981;padding-bottom:20px;margin-bottom:30px}
-    .brand h1{font-size:24px;font-weight:900;color:#10b981;letter-spacing:-0.5px}
-    .brand p{font-size:12px;color:#666}
-    .bill-title{text-align:right}
-    .bill-title h2{font-size:20px;text-transform:uppercase;color:#334155;letter-spacing:1px}
-    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-bottom:40px}
-    .info-sec h4{font-size:11px;text-transform:uppercase;color:#10b981;margin-bottom:8px;letter-spacing:1px}
-    .info-sec p{font-size:14px;font-weight:500;margin:2px 0}
-    .invoice-meta{text-align:right}
-    .invoice-meta p{font-size:13px;color:#475569}
-    table{width:100%;border-collapse:collapse;margin:20px 0}
-    th{background:#f8fafc;padding:12px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b;border-bottom:2px solid #e2e8f0}
-    td{padding:12px;border-bottom:1px solid #f1f5f9;font-size:14px;color:#1e293b}
-    .totals-sec{display:flex;justify-content:flex-end;margin-top:20px}
-    .totals-table{width:300px}
-    .totals-table tr td:first-child{text-align:right;color:#64748b;font-size:13px}
-    .totals-table tr td:last-child{text-align:right;font-weight:700;font-size:15px}
-    .grand-total{background:#f0fdf4;color:#166534}
-    .grand-total td{font-size:18px !important;padding:15px !important;border-bottom:none !important}
-    .bank-details{margin-top:40px;padding-top:20px;border-top:1px solid #eee}
-    .bank-details h4{font-size:12px;margin-bottom:5px;color:#334155}
-    .bank-details p{font-size:12px;color:#64748b}
-    .footer{text-align:center;margin-top:50px;font-size:11px;color:#94a3b8;border-top:1px dashed #e2e8f0;padding-top:20px}
-    @media print{.invoice-container{box-shadow:none;border:none;padding:0}}
-  </style></head><body>
-    <div class="invoice-container">
-      <div class="header">
-        <div class="brand">
-          <h1>BENAKA TOURS and TRAVELS</h1>
-          <p>Luxurious Travel Experiences · Panchaxari Nagar, Gadag</p>
-          <p>Mob: +91 63624 16120 | benakatravelsbusiness@gmail.com</p>
-          ${isGST ? '<p><strong>GSTIN: 29XXXXXXXXXXXXX</strong></p>' : ''}
+  
+  const baseStyles = `
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: 'Roboto', sans-serif; color: #224388; background: #fff; font-size: 15px; padding: 20px; }
+    .flex { display: flex; }
+    .flex-col { display: flex; flex-direction: column; }
+    .justify-between { justify-content: space-between; }
+    .items-end { align-items: flex-end; }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .font-bold { font-weight: 700; }
+    .font-black { font-weight: 900; }
+    .italic { font-style: italic; }
+    
+    .input-line { display: inline-block; border-bottom: 1px solid #224388; color: #000; padding: 0 5px; min-height: 1.2em; vertical-align: bottom; }
+    .row { margin-bottom: 12px; display: flex; align-items: flex-end; }
+    .w-full { width: 100%; }
+    
+    .top-text { font-size: 11px; }
+    .brand-title { font-size: 26px; letter-spacing: 0.5px; margin: 5px 0; }
+    .badge { background: #224388; color: white; display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 13px; font-weight: 700; margin-bottom: 5px; }
+    .address { font-size: 13px; font-weight: 700; }
+    
+    .pad-container { max-width: 800px; margin: 0 auto; position: relative; }
+    .sig-block { margin-top: 60px; display: flex; justify-content: space-between; font-weight: 700; font-style: italic; }
+  `;
+
+  let htmlContent = '';
+
+  if (!isGST) {
+    // IMAGE 1 (NON-GST) EXACT REPLICA
+    htmlContent = \`
+      <!DOCTYPE html><html><head><title>Cash Bill - \${i.id}</title>
+      <style>
+        \${baseStyles}
+        .pad-container { padding: 30px; }
+        .row-label { font-weight: 700; white-space: nowrap; margin-right: 5px; }
+        .data-fill { flex-grow: 1; border-bottom: 1px solid #224388; color: #000; font-weight: 700; padding-left: 5px; }
+        .bottom-calc { margin-top: 20px; width: 60%; }
+        .bottom-calc .row-label { min-width: 120px; }
+      </style></head><body>
+      <div class="pad-container">
+        <!-- Header -->
+        <div style="position: absolute; right: 30px; top: 30px; font-weight: 700; font-size: 14px; text-align: right; line-height: 1.2;">
+          Cell : 8105197768<br/>6362416120
         </div>
-        <div class="bill-title">
-          <h2>${isGST ? 'Tax Invoice' : 'Cash Bill'}</h2>
-          <div class="invoice-meta">
-            <p><strong>Invoice No:</strong> ${i.id}</p>
-            <p><strong>Date:</strong> ${i.created_at?.split('T')[0]}</p>
+        <div class="text-center">
+          <div class="top-text italic font-bold">|| Shri Veerabhadreshwara Prasanna ||</div>
+          <div class="font-black" style="font-size: 16px; margin-top: 2px;">CASH-BILL</div>
+          <div class="brand-title font-black">SHRI BENAKA TOURS & TRAVELS</div>
+          <div class="badge">Contact for All Types of AC & NON AC Vehicles</div>
+          <div class="address">Building No. 127, Panchaxari Nagar, 6th Cross, GADAG-582101</div>
+        </div>
+
+        <div style="margin-top: 30px;">
+          <div class="row w-full"><div class="row-label">No.</div><div class="data-fill">\${i.id}</div> <div class="row-label" style="margin-left: 20px;">Date:</div><div class="data-fill" style="flex-grow: 0.3;">\${new Date().toLocaleDateString('en-IN')}</div></div>
+          <div class="row w-full"><div class="row-label">Name :</div><div class="data-fill">\${i.company_name || i.client_name}</div></div>
+          <div class="row w-full"><div class="row-label">Vehicle No:</div><div class="data-fill">\${i.vehicle_no_override || i.car_model || ''}</div></div>
+          
+          <div class="flex" style="gap: 20px;">
+            <div class="row w-full"><div class="row-label">From:</div><div class="data-fill">\${i.place_from || ''}</div></div>
+            <div class="row w-full"><div class="row-label">To:</div><div class="data-fill">\${i.place_to || ''}</div></div>
+          </div>
+
+          <div class="flex" style="gap: 20px;">
+            <div class="row w-full"><div class="row-label">Opening Date:</div><div class="data-fill">\${i.start_date || ''}</div></div>
+            <div class="row w-full"><div class="row-label">Closing Date:</div><div class="data-fill">\${i.end_date || ''}</div></div>
+          </div>
+
+          <div class="row w-full" style="width: 60%;"><div class="row-label">Working Days:</div><div class="data-fill">\${i.working_days || ''}</div></div>
+
+          <div class="flex" style="gap: 20px;">
+            <div class="row w-full"><div class="row-label">Starting Km:</div><div class="data-fill">\${i.start_km || ''}</div></div>
+            <div class="row w-full"><div class="row-label">Closing Km:</div><div class="data-fill">\${i.end_km || ''}</div></div>
+          </div>
+
+          <div class="row w-full" style="width: 60%;"><div class="row-label">Total Km:</div><div class="data-fill">\${i.total_km || ''}</div></div>
+          <div class="row w-full" style="width: 80%;"><div class="row-label">Driver Batta:</div><div class="data-fill">\${fmt(i.driver_batta_paise)}</div></div>
+          <div class="row w-full"><div class="row-label">Toll Gate Amount:</div><div class="data-fill">\${fmt(i.toll_gate_paise + i.fastag_paise)}</div></div>
+
+          <!-- Bottom Totals block -->
+          <div class="bottom-calc">
+            <div class="row w-full"><div class="row-label">Total</div><div style="margin: 0 10px;">:</div><div class="data-fill text-right">\${fmt(i.total_amount_paise)}</div></div>
+            <div class="row w-full"><div class="row-label">Advance</div><div style="margin: 0 10px;">:</div><div class="data-fill text-right">\${fmt(i.advance_paid_paise)}</div></div>
+            <div class="row w-full"><div class="row-label">Total Balance</div><div style="margin: 0 10px;">:</div><div class="data-fill text-right">\${fmt(i.total_amount_paise - i.advance_paid_paise)}</div></div>
+          </div>
+
+          <div style="font-size: 11px; font-weight: 700; margin-top: 10px; color: #000;">
+            Note :<br/>Rate of Average Per Day (\${i.km_limit_per_day} kms)
+          </div>
+
+          <div class="sig-block">
+            <div>Client Signature</div>
+            <div>Signature</div>
           </div>
         </div>
       </div>
-      
-      <div class="info-grid">
-        <div class="info-sec">
-          <h4>Bill To</h4>
-          <p><strong>${i.company_name || i.client_name}</strong></p>
-          ${i.party_gstin ? `<p>GSTIN: ${i.party_gstin}</p>` : ''}
-          <p>${i.client_phone}</p>
+      </body></html>
+    \`;
+  } else {
+    // IMAGE 2 (GST) EXACT REPLICA
+    htmlContent = \`
+      <!DOCTYPE html><html><head><title>Tax Invoice - \${i.id}</title>
+      <style>
+        \${baseStyles}
+        .pad-container { border: 2px solid #224388; padding: 20px; font-weight: 700; }
+        .row-label { white-space: nowrap; margin-right: 5px; }
+        .data-fill { display: inline-block; border-bottom: 1px solid #224388; color: #000; padding: 0 5px; min-height: 1.2em; min-width: 50px; text-align: center; }
+        
+        .calc-table { width: 100%; border-collapse: collapse; margin-top: 10px; border: 2px solid #224388; }
+        .calc-table td, .calc-table th { border: 1px solid #224388; padding: 8px; }
+        .calc-table .col-amount { width: 180px; text-align: right; color: #000; }
+        
+        .fill-full { display: flex; align-items: flex-end; margin-bottom: 10px; }
+        .fill-full .line { flex-grow: 1; border-bottom: 1px solid #224388; text-align: left; padding: 0 5px; color: #000;}
+      </style></head><body>
+      <div class="pad-container">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-end" style="border-bottom: 1px solid #224388; padding-bottom: 5px; margin-bottom: 10px;">
+          <div style="font-size: 14px; font-weight: 900;">GSTIN: 29APHPL5323F1ZW</div>
+          <div class="text-center">
+            <div class="top-text italic">|| Shri Veerabhadreshwara Prasanna ||</div>
+            <div class="font-black" style="font-size: 16px;">CASH BILL</div>
+          </div>
+          <div class="text-right" style="font-size: 14px; font-weight: 900; line-height: 1.2;">
+            Cell : 8105197768<br/>6362416120
+          </div>
         </div>
-        <div class="info-sec" style="text-align:right">
-          <h4>Trip Details</h4>
-          <p><strong>Vehicle:</strong> ${i.car_model}</p>
-          <p><strong>Route:</strong> ${i.place_from || 'Local'} to ${i.place_to || 'Local'}</p>
-          <p><strong>Period:</strong> ${i.start_date} to ${i.end_date}</p>
+
+        <div class="text-center" style="margin-bottom: 15px;">
+          <div class="brand-title font-black text-center">BENAKA TOURS & TRAVELS</div>
+          <div class="badge" style="background: none; color: #224388; border: 1px solid #224388; font-size: 12px; margin-bottom: 2px;">Contact for All Types of AC & NON AC Vehicles</div>
+          <div class="font-bold" style="font-size: 12px;">Building No. 127, Panchaxari Nagar, 6th Cross, GADAG-582101.</div>
         </div>
-      </div>
-      
-      <table>
-        <thead>
+
+        <!-- Meta Data -->
+        <div class="flex justify-between" style="margin-bottom: 15px;">
+          <div class="row"><div class="row-label" style="color: #ef4444;">Invoice No.</div><div class="data-fill" style="color: #ef4444; font-size: 18px;">\${i.id}</div></div>
+          <div class="row"><div class="row-label">Date :</div><div class="data-fill" style="width: 150px;">\${new Date().toLocaleDateString('en-IN')}</div></div>
+        </div>
+        
+        <div class="fill-full"><div class="row-label">M/s.</div><div class="line">\${i.company_name || i.client_name}</div></div>
+        
+        <div class="flex gap-20">
+          <div class="fill-full w-full" style="flex: 2;"><div class="row-label">Party GSTIN :</div><div class="line">\${i.party_gstin || ''}</div></div>
+          <div class="fill-full w-full" style="flex: 1;"><div class="row-label">Vehicle No.</div><div class="line">\${i.vehicle_no_override || i.car_model || ''}</div></div>
+        </div>
+
+        <!-- Multipliers -->
+        <div class="flex gap-20" style="margin-top: 15px;">
+          <div style="flex: 1;" class="flex-col">
+            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Opening Date</div><div style="margin-right: 10px;">:</div><div class="line">\${i.start_date || ''}</div></div>
+            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Closing Date</div><div style="margin-right: 10px;">:</div><div class="line">\${i.end_date || ''}</div></div>
+            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Total Working Days</div><div style="margin-right: 10px;">:</div><div class="line">\${i.working_days || ''}</div></div>
+            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Starting Km</div><div style="margin-right: 10px;">:</div><div class="line">\${i.start_km || ''}</div></div>
+            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Ending Km</div><div style="margin-right: 10px;">:</div><div class="line">\${i.end_km || ''}</div></div>
+            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Total Km</div><div style="margin-right: 10px;">:</div><div class="line">\${i.total_km || ''}</div></div>
+          </div>
+          <div style="flex: 1;"></div> <!-- Empty space right -->
+        </div>
+
+        <div style="margin-top: 10px;">
+          <div class="fill-full"><div class="row-label">Rate of Extra Kms</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">\${i.extra_km_rate_paise/100} x \${i.extra_km_qty} = \${fmt(i.extra_km_total_paise)}</div></div>
+          <div class="fill-full"><div class="row-label">Rate of Average Per Month <span class="data-fill">\${i.km_limit_per_day}</span> Kms</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">\${i.avg_monthly_rate_paise/100} x \${i.qty_avg_per_month} = \${fmt(i.avg_monthly_rate_paise * i.qty_avg_per_month)}</div></div>
+          <div class="fill-full"><div class="row-label">Toll Gate Amount</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">\${fmt(i.toll_gate_paise)}</div></div>
+          <div class="fill-full"><div class="row-label">Amount for <span class="data-fill">\${i.working_days}</span> Days</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">\${fmt(i.amount_for_days_paise)}</div></div>
+          <div class="fill-full"><div class="row-label">Amount for Extra Kms: <span class="data-fill">\${i.extra_km_qty}</span> Kms</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">\${fmt(i.extra_km_total_paise)}</div></div>
+          <div class="fill-full"><div class="row-label">Driver Extra Duty: <span class="data-fill">\${i.driver_extra_duty_rate_paise/100} x \${i.driver_extra_duty_hours}</span> Hours</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">\${fmt(i.driver_extra_duty_total_paise)}</div></div>
+        </div>
+
+        <table class="calc-table">
           <tr>
-            <th width="40">Sl</th>
-            <th>Description</th>
-            <th style="text-align:right">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>01</td>
-            <td>
-              <strong>Car Rental Charges</strong><br/>
-              <span style="font-size:11px; color:#666">
-                ${i.start_km ? `Reading: ${i.start_km} to ${i.end_km} Km` : ''} 
-                ${i.working_days ? `(${i.working_days} Days)` : ''}
-              </span>
+            <td style="min-height: 100px; vertical-align: top; font-weight: normal; color: #000; font-size: 16px; white-space: pre-wrap;">
+              \${i.trip_description || '&nbsp;'}
             </td>
-            <td style="text-align:right">${fmt(i.subtotal_paise)}</td>
+            <td style="vertical-align: top;">
+              <div class="flex justify-between" style="border-bottom: 1px solid #224388; padding-bottom: 5px; margin-bottom: 5px;"><span>Amount</span><span class="col-amount">\${fmt(i.subtotal_paise)}</span></div>
+              <div class="flex justify-between"><span>CGST \${i.cgst_rate}%</span><span class="col-amount">\${fmt(i.cgst_paise)}</span></div>
+              <div class="flex justify-between"><span>SGST \${i.sgst_rate}%</span><span class="col-amount">\${fmt(i.sgst_paise)}</span></div>
+              <div class="flex justify-between"><span>Fastag / Batta</span><span class="col-amount">\${fmt(i.fastag_paise + i.driver_batta_paise)}</span></div>
+              <div class="flex justify-between" style="border-top: 1px solid #224388; padding-top: 5px; margin-top: 5px; font-weight: 900;"><span>G.TOTAL</span><span class="col-amount">\${fmt(i.total_amount_paise)}</span></div>
+            </td>
           </tr>
-          ${(i.driver_batta_paise > 0) ? `<tr><td>02</td><td>Driver Batta</td><td style="text-align:right">${fmt(i.driver_batta_paise)}</td></tr>` : ''}
-          ${(i.toll_gate_paise > 0) ? `<tr><td>03</td><td>Toll Gate / Parking</td><td style="text-align:right">${fmt(i.toll_gate_paise)}</td></tr>` : ''}
-          ${(i.fastag_paise > 0) ? `<tr><td>04</td><td>Fastag Charges</td><td style="text-align:right">${fmt(i.fastag_paise)}</td></tr>` : ''}
-          ${(i.line_items || []).map((li, idx) => li.amount_paise > 0 ? `<tr><td>0${idx+5}</td><td>${li.description}</td><td style="text-align:right">${fmt(li.amount_paise)}</td></tr>` : '').join('')}
-        </tbody>
-      </table>
-      
-      <div class="totals-sec">
-        <table class="totals-table">
-          <tr><td>Sub Total:</td><td>${fmt(i.subtotal_paise + (i.driver_batta_paise||0) + (i.toll_gate_paise||0) + (i.fastag_paise||0))}</td></tr>
-          ${isGST ? `
-            <tr><td>CGST (${i.cgst_rate}%):</td><td>${fmt(i.cgst_paise)}</td></tr>
-            <tr><td>SGST (${i.sgst_rate}%):</td><td>${fmt(i.sgst_paise)}</td></tr>
-          ` : ''}
-          <tr class="grand-total"><td>Total Amount:</td><td>${fmt(i.total_amount_paise)}</td></tr>
-          ${i.advance_paid_paise > 0 ? `<tr><td>Advance Paid:</td><td>${fmt(i.advance_paid_paise)}</td></tr>` : ''}
-          <tr><td><strong>Balance Due:</strong></td><td style="color:#ef4444">${fmt(i.total_amount_paise - (i.advance_paid_paise || 0))}</td></tr>
         </table>
+
+        <div class="sig-block" style="margin-top: 40px;">
+          <div>Client Signature</div>
+          <div>For, BENAKA TOURS & TRAVELS</div>
+        </div>
+
       </div>
-      
-      <div class="bank-details">
-        <h4>Bank Details & Terms</h4>
-        <p><strong>Bank:</strong> Canara Bank | <strong>A/c:</strong> 1234567890 | <strong>IFSC:</strong> CNRB0001234</p>
-        <p style="margin-top:10px; font-style:italic">Thank you for choosing Benaka Tours and Travels! Please pay within 7 days of invoice date.</p>
-      </div>
-      
-      <div class="footer">
-        <p>Digital Invoice Generated by Benaka Admin Engine · +91 63624 16120</p>
-      </div>
-    </div>
-  </body></html>`);
+      </body></html>
+    \`;
+  }
   w.document.close();
-  setTimeout(() => w.print(), 500);
+  setTimeout(() => w.print(), 800);
+}
+
+// Simple number to words helper
+function numberToWords(num) {
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  if (num === 0) return 'Zero';
+  const convert = (n) => {
+    if (n < 20) return ones[n];
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '');
+    if (n < 1000) return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' and ' + convert(n % 100) : '');
+    if (n < 100000) return convert(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 !== 0 ? ' ' + convert(n % 1000) : '');
+    if (n < 10000000) return convert(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 !== 0 ? ' ' + convert(n % 100000) : '');
+    return 'Large Amount';
+  };
+  return convert(Math.floor(num));
 }
 
 /* ══════════════ REVENUE CHART ══════════════ */
@@ -249,11 +345,12 @@ function DashboardPage({ setPage }) {
   const fetchAll = useCallback(async () => {
     try {
       const [sr, br, cr] = await Promise.all([
-        fetch('/api/admin/stats', { headers: { Authorization: TOKEN } }),
+        fetch('/api/admin/billing/dashboard', { headers: { Authorization: TOKEN } }),
         fetch('/api/admin/bookings', { headers: { Authorization: TOKEN } }),
         fetch('/api/admin/revenue-chart', { headers: { Authorization: TOKEN } })
       ]);
-      setStats(await sr.json());
+      const res = await sr.json();
+      if (res.success) setStats(res.data);
       const bd = await br.json(); if (Array.isArray(bd)) setBookings(bd);
       const cd = await cr.json(); if (Array.isArray(cd)) setChartData(cd);
     } catch {}
@@ -277,10 +374,10 @@ function DashboardPage({ setPage }) {
     <>
       <div className="adm-stats-row">
         {[
-          { label: 'Total Bookings', value: stats?.totalBookings ?? '—', sub: `${stats?.pendingBookings ?? 0} pending`, subClass: 'yellow', icon: '📋', iconClass: 'icon-blue' },
-          { label: 'Available Fleet', value: `${stats?.availableCars ?? '—'} Cars`, sub: `${stats?.totalCars ?? '—'} total`, subClass: 'blue', icon: '🚗', iconClass: 'icon-green' },
-          { label: 'Total Revenue', value: `₹${((stats?.totalRevenue || 0) / 100).toLocaleString('en-IN')}`, sub: `₹${((stats?.monthRevenue || 0) / 100).toLocaleString('en-IN')} this month`, subClass: 'green', icon: '💰', iconClass: 'icon-yellow' },
-          { label: 'Active Rentals', value: stats?.rentedCars ?? '—', sub: `${stats?.completedBookings ?? 0} completed`, subClass: 'blue', icon: '🔑', iconClass: 'icon-red' },
+          { label: 'Total Bookings', value: stats?.total_bookings ?? '—', sub: `Recent activity`, subClass: 'yellow', icon: '📋', iconClass: 'icon-blue' },
+          { label: 'Available Fleet', value: `${stats?.total_fleet - stats?.active_trips ?? '—'} Cars`, sub: `${stats?.total_fleet ?? '—'} total`, subClass: 'blue', icon: '🚗', iconClass: 'icon-green' },
+          { label: 'Total Revenue', value: `₹${((stats?.revenue_this_month_paise || 0) / 100).toLocaleString('en-IN')}`, sub: `This Month`, subClass: 'green', icon: '💰', iconClass: 'icon-yellow' },
+          { label: 'Outstanding', value: `₹${((stats?.outstanding_paise || 0) / 100).toLocaleString('en-IN')}`, sub: `Collect from clients`, subClass: 'blue', icon: '🔑', iconClass: 'icon-red' },
         ].map((s, i) => (
           <div key={i} className="adm-stat-card">
             <div>
@@ -1133,11 +1230,42 @@ function InvoiceFormModal({ onClose, onSuccess, cars, clients, onAddClient }) {
   const [form, setForm] = useState({
     client_id: '', car_id: '', bill_type: 'NON_GST', company_name: '', party_gstin: '',
     place_from: '', place_to: '', working_days: '', start_date: '', end_date: '',
-    start_km: '', end_km: '', extra_km_rate: '', avg_monthly_rate: '',
-    driver_extra_duty: '', driver_batta: '', toll_gate: '', fastag: '',
-    cgst_rate: 9, sgst_rate: 9, advance_paid: 0
+    start_km: '', end_km: '', km_limit_per_day: 300, extra_km_rate: '', 
+    avg_monthly_rate: '', qty_avg_per_month: 1,
+    driver_extra_duty_hours: '', driver_extra_duty_rate: '', 
+    driver_batta: '', toll_gate: '', fastag: '', 
+    cgst_rate: 9, sgst_rate: 9, advance_paid: 0,
+    vehicle_no_override: '', trip_description: '',
+    amount_for_days: ''
   });
 
+  const [calc, setCalc] = useState({ total_km: 0, extra_km: 0, total_paise: 0 });
+
+  useEffect(() => {
+    // Live Calculation
+    const days = parseInt(form.working_days) || 0;
+    const s_km = parseInt(form.start_km) || 0;
+    const e_km = parseInt(form.end_km) || 0;
+    const limit = parseInt(form.km_limit_per_day) || 300;
+    const ex_rate = parseFloat(form.extra_km_rate) || 0;
+    
+    const total_km = (e_km > s_km) ? (e_km - s_km) : 0;
+    const extra_km = Math.max(0, total_km - (days * limit));
+    
+    // Monetary sums
+    const base_days_paise = Math.round((parseFloat(form.amount_for_days) || 0) * 100);
+    const avg_monthly_paise = Math.round((parseFloat(form.avg_monthly_rate) || 0) * (parseInt(form.qty_avg_per_month) || 1) * 100);
+    const extra_km_paise = Math.round(extra_km * ex_rate * 100);
+    const extra_duty_paise = Math.round((parseFloat(form.driver_extra_duty_hours) || 0) * (parseFloat(form.driver_extra_duty_rate) || 0) * 100);
+    const others_paise = (Math.round(parseFloat(form.driver_batta) || 0) + Math.round(parseFloat(form.toll_gate) || 0) + Math.round(parseFloat(form.fastag) || 0)) * 100;
+    
+    const subtotal = base_days_paise + avg_monthly_paise + extra_km_paise + extra_duty_paise + others_paise;
+    const gst = form.bill_type === 'GST' ? Math.round(subtotal * (parseFloat(form.cgst_rate) + parseFloat(form.sgst_rate)) / 100) : 0;
+    
+    setCalc({ total_km, extra_km, total_paise: subtotal + gst });
+  }, [form]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     // Auto-calculate base rental if working days and car rate are available
@@ -1150,12 +1278,16 @@ function InvoiceFormModal({ onClose, onSuccess, cars, clients, onAddClient }) {
       ...form,
       client_id: parseInt(form.client_id),
       car_id: parseInt(form.car_id),
-      subtotal_paise: calculatedBasePaise, 
-      line_items: calculatedBasePaise > 0 ? [] : [{ description: 'Base Rental', amount_paise: 0 }],
-      advance_paid_paise: Math.round(form.advance_paid * 100),
-      driver_batta_paise: Math.round(form.driver_batta * 100),
-      toll_gate_paise: Math.round(form.toll_gate * 100),
-      fastag_paise: Math.round(form.fastag * 100),
+      amount_for_days_paise: Math.round((parseFloat(form.amount_for_days) || 0) * 100),
+      avg_monthly_rate_paise: Math.round((parseFloat(form.avg_monthly_rate) || 0) * 100),
+      extra_km_rate_paise: Math.round((parseFloat(form.extra_km_rate) || 0) * 100),
+      driver_extra_duty_hours: parseFloat(form.driver_extra_duty_hours) || 0,
+      driver_extra_duty_rate_paise: Math.round((parseFloat(form.driver_extra_duty_rate) || 0) * 100),
+      advance_paid_paise: Math.round(parseFloat(form.advance_paid) * 100),
+      driver_batta_paise: Math.round(parseFloat(form.driver_batta) * 100),
+      toll_gate_paise: Math.round(parseFloat(form.toll_gate) * 100),
+      fastag_paise: Math.round(parseFloat(form.fastag) * 100),
+      line_items: [] // Can be extended later if needed
     };
     
     try {
@@ -1209,11 +1341,15 @@ function InvoiceFormModal({ onClose, onSuccess, cars, clients, onAddClient }) {
           <div className="adm-form-row">
             <div className="adm-form-group">
               <label>Vehicle</label>
-              <select required className="adm-input" value={form.car_id} onChange={e => setForm({...form, car_id: e.target.value})}>
+              <select required className="adm-input" value={form.car_id} onChange={e => {
+                const c = cars.find(v => v.id === parseInt(e.target.value));
+                setForm({...form, car_id: e.target.value, amount_for_days: c ? (c.price * (parseInt(form.working_days) || 1)) : form.amount_for_days});
+              }}>
                 <option value="">-- Select Car --</option>
                 {cars.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
+            <div className="adm-form-group"><label>Vehicle Plate No.</label><input className="adm-input" placeholder="e.g. KA-01-XX-1234" value={form.vehicle_no_override} onChange={e => setForm({...form, vehicle_no_override: e.target.value})} /></div>
             <div className="adm-form-group"><label>Working Days</label><input type="number" className="adm-input" value={form.working_days} onChange={e => setForm({...form, working_days: e.target.value})} /></div>
           </div>
 
@@ -1225,20 +1361,49 @@ function InvoiceFormModal({ onClose, onSuccess, cars, clients, onAddClient }) {
           <div className="adm-form-row">
             <div className="adm-form-group"><label>Place From</label><input className="adm-input" value={form.place_from} onChange={e => setForm({...form, place_from: e.target.value})} /></div>
             <div className="adm-form-group"><label>Place To</label><input className="adm-input" value={form.place_to} onChange={e => setForm({...form, place_to: e.target.value})} /></div>
+            <div className="adm-form-group" style={{ flex: 2 }}><label>Trip Description (Shows in Main Block)</label><textarea className="adm-input" rows="2" placeholder={'e.g. Corporate site visit...\nVehicle 1 Rent\nVehicle 2 Rent'} value={form.trip_description} onChange={e => setForm({...form, trip_description: e.target.value})} style={{ resize: 'vertical', minHeight: '44px' }}></textarea></div>
+          </div>
+
+          <div className="adm-form-section-title">📏 Distance Tracking</div>
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>Starting KM</label><input type="number" className="adm-input" value={form.start_km} onChange={e => setForm({...form, start_km: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Closing KM</label><input type="number" className="adm-input" value={form.end_km} onChange={e => setForm({...form, end_km: e.target.value})} /></div>
+            <div className="adm-form-group"><label>KM Limit / Day</label><input type="number" className="adm-input" value={form.km_limit_per_day} onChange={e => setForm({...form, km_limit_per_day: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Extra KM Rate (₹)</label><input type="number" className="adm-input" value={form.extra_km_rate} onChange={e => setForm({...form, extra_km_rate: e.target.value})} /></div>
+          </div>
+          <div className="calc-summary-row">
+            Total KM: <strong>{calc.total_km}</strong> | Extra KM: <strong>{calc.extra_km}</strong>
+          </div>
+
+          <div className="adm-form-section-title">💰 Charges Breakdown (₹)</div>
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>Amount for {form.working_days || 'X'} Days</label><input type="number" className="adm-input highlight" value={form.amount_for_days} onChange={e => setForm({...form, amount_for_days: e.target.value})} /></div>
+            <div className="adm-form-group" title="Rate * Qty"><label>Avg Monthly Rate</label><input type="number" className="adm-input" value={form.avg_monthly_rate} onChange={e => setForm({...form, avg_monthly_rate: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Vehicle Qty</label><input type="number" className="adm-input" value={form.qty_avg_per_month} onChange={e => setForm({...form, qty_avg_per_month: e.target.value})} /></div>
+          </div>
+
+          <div className="adm-form-row" style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px' }}>
+            <div className="adm-form-group"><label>Extra Duty Hours</label><input type="number" className="adm-input" value={form.driver_extra_duty_hours} onChange={e => setForm({...form, driver_extra_duty_hours: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Duty Rate (₹/Hr)</label><input type="number" className="adm-input" value={form.driver_extra_duty_rate} onChange={e => setForm({...form, driver_extra_duty_rate: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Driver Batta</label><input type="number" className="adm-input" value={form.driver_batta} onChange={e => setForm({...form, driver_batta: e.target.value})} /></div>
           </div>
 
           <div className="adm-form-row">
-            <div className="adm-form-group"><label>Driver Batta (₹)</label><input type="number" className="adm-input" value={form.driver_batta} onChange={e => setForm({...form, driver_batta: e.target.value})} /></div>
-            <div className="adm-form-group"><label>Toll / Parking (₹)</label><input type="number" className="adm-input" value={form.toll_gate} onChange={e => setForm({...form, toll_gate: e.target.value})} /></div>
-            <div className="adm-form-group"><label>Fastag (₹)</label><input type="number" className="adm-input" value={form.fastag} onChange={e => setForm({...form, fastag: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Toll Gate</label><input type="number" className="adm-input" value={form.toll_gate} onChange={e => setForm({...form, toll_gate: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Fastag Charges</label><input type="number" className="adm-input" value={form.fastag} onChange={e => setForm({...form, fastag: e.target.value})} /></div>
           </div>
 
           {form.bill_type === 'GST' && (
-            <div className="adm-form-row">
+            <div className="adm-form-row" style={{ background: 'rgba(16,185,129,0.05)', padding: '10px', borderRadius: '8px' }}>
               <div className="adm-form-group"><label>CGST Rate (%)</label><input type="number" step="0.5" className="adm-input" value={form.cgst_rate} onChange={e => setForm({...form, cgst_rate: e.target.value})} /></div>
               <div className="adm-form-group"><label>SGST Rate (%)</label><input type="number" step="0.5" className="adm-input" value={form.sgst_rate} onChange={e => setForm({...form, sgst_rate: e.target.value})} /></div>
+              <div className="adm-form-group" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', fontSize: '.75rem', color: '#10b981' }}>Auto-Pre-filled (Editable)</div>
             </div>
           )}
+
+          <div className="form-grand-total">
+            Estimated Grand Total: <span>₹{(calc.total_paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+          </div>
 
           <div className="adm-form-row" style={{ marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1rem' }}>
             <div className="adm-form-group"><label>Advance Received (₹)</label><input type="number" className="adm-input" value={form.advance_paid} onChange={e => setForm({...form, advance_paid: e.target.value})} /></div>

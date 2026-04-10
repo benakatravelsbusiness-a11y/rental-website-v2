@@ -14,12 +14,13 @@ dashboardRoutes.get('/', async (c) => {
   const totalClientsResult = await db.prepare(`SELECT COUNT(*) as count FROM clients`).first<{ count: number }>();
   const totalFleetResult = await db.prepare(`SELECT COUNT(*) as count FROM cars`).first<{ count: number }>();
 
-  const stats: DashboardStats = {
+  const stats = {
     revenue_this_month_paise: revenueResult?.total ?? 0,
     outstanding_paise: outstandingResult?.total ?? 0,
     active_trips: activeTripsResult?.count ?? 0,
     total_clients: totalClientsResult?.count ?? 0,
     total_fleet: totalFleetResult?.count ?? 0,
+    total_bookings: (await db.prepare('SELECT COUNT(*) as count FROM bookings').first<{ count: number }>())?.count ?? 0,
   };
 
   return c.json<ApiResponse<DashboardStats>>({ success: true, data: stats });
