@@ -831,68 +831,89 @@ function VehiclesPage() {
 }
 
 /* ══════════════════════════════════════════════════
-   CUSTOMERS PAGE
+   REVENUE PAGE
 ══════════════════════════════════════════════════ */
-function CustomersPage() {
-  const [customers, setCustomers] = useState([]);
+function RevenuePage() {
+  const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
-    fetch('/api/admin/bookings', { headers: { Authorization: TOKEN } })
-      .then(r => r.json()).then(data => {
-        if (!Array.isArray(data)) return;
-        const map = {};
-        data.forEach(b => {
-          const k = b.customer_phone;
-          if (!map[k]) map[k] = { name: b.customer_name, email: b.customer_email, phone: b.customer_phone, bookings: 0, revenue: 0, lastCar: '' };
-          map[k].bookings++;
-          if (b.status === 'confirmed' || b.status === 'completed') map[k].revenue += b.total_price || 0;
-          map[k].lastCar = b.car_name;
-        });
-        setCustomers(Object.values(map).sort((a, b) => b.revenue - a.revenue));
+    setLoading(true);
+    fetch('/api/admin/billing/invoices', { headers: { Authorization: TOKEN } })
+      .then(r => r.json()).then(d => {
+        if (d.success) setInvoices(d.data.invoices);
       }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  const filtered = customers.filter(c => !search || [c.name, c.email, c.phone].some(v => v?.toLowerCase().includes(search.toLowerCase())));
+  const filtered = invoices.filter(inv => {
+    if (inv.status === 'Draft') return false;
+    const invDate = new Date(inv.created_at);
+    if (startDate && invDate < new Date(startDate + 'T00:00:00')) return false;
+    if (endDate && invDate > new Date(endDate + 'T23:59:59')) return false;
+    return true;
+  });
+
+  const totalCalculated = filtered.reduce((acc, curr) => acc + curr.total_amount_paise, 0);
+  const totalCollected = filtered.reduce((acc, curr) => acc + curr.advance_paid_paise, 0);
+  const totalPending = totalCalculated - totalCollected;
 
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Customers</h2>
-          <p style={{ fontSize: '.8rem', color: 'rgba(255,255,255,.4)' }}>{customers.length} unique customers</p>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Revenue & Transactions</h2>
+          <p style={{ fontSize: '.8rem', color: 'rgba(255,255,255,.4)' }}>Billing Engine accuracy reporting</p>
         </div>
-        <input className="adm-search" placeholder="🔍 Search..." value={search} onChange={e => setSearch(e.target.value)} />
+        <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '.25rem', borderRadius: '8px' }}>
+          <input type="date" className="adm-input" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ padding: '.5rem', fontSize: '.75rem' }} />
+          <span style={{ color: 'rgba(255,255,255,.3)', fontSize: '.75rem' }}>to</span>
+          <input type="date" className="adm-input" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ padding: '.5rem', fontSize: '.75rem' }} />
+        </div>
+      </div>
+
+      <div className="adm-stats-row" style={{ marginBottom: '1.5rem' }}>
+        <div className="adm-stat-card">
+          <div>
+            <div className="adm-stat-label">Total Invoiced</div>
+            <div className="adm-stat-value" style={{ fontSize: '1.5rem' }}>₹{(totalCalculated / 100).toLocaleString()}</div>
+          </div>
+          <div className="adm-stat-icon icon-blue">📋</div>
+        </div>
+        <div className="adm-stat-card">
+          <div>
+            <div className="adm-stat-label">Total Collected</div>
+            <div className="adm-stat-value" style={{ fontSize: '1.5rem', color: '#34d399' }}>₹{(totalCollected / 100).toLocaleString()}</div>
+          </div>
+          <div className="adm-stat-icon icon-green">💰</div>
+        </div>
+        <div className="adm-stat-card">
+          <div>
+            <div className="adm-stat-label">Pending Balance</div>
+            <div className="adm-stat-value" style={{ fontSize: '1.5rem', color: '#ef4444' }}>₹{(totalPending / 100).toLocaleString()}</div>
+          </div>
+          <div className="adm-stat-icon icon-red">⏳</div>
+        </div>
       </div>
 
       <div className="adm-panel">
         <div style={{ overflowX: 'auto' }}>
-          {loading ? <Loader /> : filtered.length === 0 ? <Empty icon="👥" text="No customers yet" /> : (
+          {loading ? <Loader /> : filtered.length === 0 ? <Empty icon="💳" text="No transactions found in this date range" /> : (
             <table className="adm-table">
-              <thead><tr><th>#</th><th>Customer</th><th>Phone</th><th>Email</th><th>Bookings</th><th>Revenue</th><th>Contact</th></tr></thead>
+              <thead><tr><th>Date</th><th>INV #</th><th>Customer</th><th>Total Bill</th><th>Paid Amount</th><th>Balance</th><th>Status</th></tr></thead>
               <tbody>
-                {filtered.map((c, i) => (
-                  <tr key={c.phone}>
-                    <td style={{ color: 'rgba(255,255,255,.3)' }}>{i + 1}</td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '.65rem' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg,#10b981,#059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '.85rem', flexShrink: 0 }}>{c.name.charAt(0)}</div>
-                        <div>
-                          <div style={{ fontWeight: 600 }}>{c.name}</div>
-                          <div style={{ fontSize: '.7rem', color: 'rgba(255,255,255,.3)' }}>Last: {c.lastCar}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ fontSize: '.85rem' }}>{c.phone}</td>
-                    <td style={{ fontSize: '.85rem', color: 'rgba(255,255,255,.5)' }}>{c.email}</td>
-                    <td><span className="pill pill-blue">{c.bookings}</span></td>
-                    <td style={{ fontWeight: 700, color: '#4ade80' }}>${c.revenue.toLocaleString()}</td>
-                    <td>
-                      <a href={whatsappLink(c.phone, `Hi ${c.name}! This is BENAKA TRAVELS.`)} target="_blank" rel="noreferrer" className="adm-btn adm-btn-ghost adm-btn-sm" style={{ color: '#25D366' }}>
-                        <MessageCircle size={14} /> WhatsApp
-                      </a>
-                    </td>
+                {filtered.map(i => (
+                  <tr key={i.id}>
+                    <td style={{ color: 'rgba(255,255,255,.5)', fontSize: '.8rem' }}>{new Date(i.created_at).toLocaleDateString()}</td>
+                    <td style={{ fontFamily: 'monospace' }}>{i.id}</td>
+                    <td>{i.customer_name}</td>
+                    <td style={{ fontWeight: 700 }}>₹{(i.total_amount_paise / 100).toLocaleString()}</td>
+                    <td style={{ color: '#34d399' }}>₹{(i.advance_paid_paise / 100).toLocaleString()}</td>
+                    <td style={{ color: '#ef4444' }}>₹{((i.total_amount_paise - i.advance_paid_paise) / 100).toLocaleString()}</td>
+                    <td><StatusPill status={i.status} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -1073,30 +1094,19 @@ function BillingEnginePage() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [showAddClient, setShowAddClient] = useState(false);
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [payInvoiceData, setPayInvoiceData] = useState(null);
   const [cars, setCars] = useState([]);
-  const [clients, setClients] = useState([]);
-  
-  // Create Invoice State
-  const [form, setForm] = useState({
-    client_id: '', car_id: '', bill_type: 'NON_GST', company_name: '', party_gstin: '',
-    place_from: '', place_to: '', working_days: '', start_date: '', end_date: '',
-    start_km: '', end_km: '', extra_km_rate: '', avg_monthly_rate: '',
-    driver_extra_duty: '', driver_batta: '', toll_gate: '', fastag: '',
-    cgst_rate: 9, sgst_rate: 9, advance_paid: 0
-  });
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [ir, cr, clr] = await Promise.all([
+      const [ir, cr] = await Promise.all([
         fetch('/api/admin/billing/invoices', { headers: { Authorization: TOKEN } }),
-        fetch('/api/admin/cars', { headers: { Authorization: TOKEN } }),
-        fetch('/api/admin/billing/clients', { headers: { Authorization: TOKEN } })
+        fetch('/api/admin/cars', { headers: { Authorization: TOKEN } })
       ]);
       const idata = await ir.json(); if (idata.success) setInvoices(idata.data.invoices);
       const cdata = await cr.json(); if (Array.isArray(cdata)) setCars(cdata);
-      const cldata = await clr.json(); if (cldata.success) setClients(cldata.data.clients);
     } catch {}
     setLoading(false);
   }, []);
@@ -1146,6 +1156,20 @@ function BillingEnginePage() {
     } catch { toast('Network error during delete', 'error'); }
   };
 
+  const handlePayBalance = async (e) => {
+    e.preventDefault();
+    const paidAmt = document.getElementById('pay-balance-input').value;
+    if (!paidAmt) return;
+    try {
+      const r = await fetch(`/api/admin/billing/invoices/${payInvoiceData.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: TOKEN },
+        body: JSON.stringify({ status: 'Paid', advance_paid_paise: Math.round(parseFloat(paidAmt) * 100) })
+      });
+      if (r.ok) { toast('Payment added!', 'success'); fetchAll(); setShowPayModal(false); }
+    } catch { toast('Error updating payment', 'error'); }
+  };
+
   return (
     <div className="adm-page-fade">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -1186,14 +1210,17 @@ function BillingEnginePage() {
                 {invoices.map(inv => (
                   <tr key={inv.id}>
                     <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{inv.id}</td>
-                    <td>{inv.client_name}</td>
+                    <td>{inv.customer_name}</td>
                     <td>{inv.car_model}</td>
                     <td style={{ fontSize: '.8rem', color: 'rgba(255,255,255,0.6)' }}>{inv.start_date} → {inv.end_date}</td>
                     <td style={{ fontWeight: 700, color: '#34d399', textAlign: 'right' }}>₹{(inv.total_amount_paise / 100).toLocaleString()}</td>
                     <td><span className={`adm-badge ${inv.status.toLowerCase()}`}>{inv.status}</span></td>
                     <td>
                       <div style={{ display: 'flex', gap: '.4rem', justifyContent: 'flex-end' }}>
-                        <button className="adm-btn adm-btn-ghost adm-btn-sm" onClick={() => printProfessionalInvoice(inv)} title="Print"><Printer size={15} /></button>
+                        {inv.status !== 'Paid' && (
+                          <button className="adm-btn adm-btn-success adm-btn-sm" onClick={() => { setPayInvoiceData(inv); setShowPayModal(true); }} style={{ padding: '0 .5rem', fontSize: '.7rem' }}>💳 Pay</button>
+                        )}
+                        <button className="adm-btn adm-btn-ghost adm-btn-sm" onClick={() => printProfessionalInvoice(inv)} title="View/Print Bill" style={{ color: '#60a5fa' }}><Eye size={15} /></button>
                         <button className="adm-btn adm-btn-ghost adm-btn-sm" onClick={() => deleteInvoice(inv.id)} title="Delete" style={{ color: '#ef4444' }}><Trash2 size={15} /></button>
                       </div>
                     </td>
@@ -1210,25 +1237,36 @@ function BillingEnginePage() {
           onClose={() => setShowCreate(false)} 
           onSuccess={() => { setShowCreate(false); fetchAll(); }}
           cars={cars}
-          clients={clients}
-          onAddClient={() => { setShowCreate(false); setShowAddClient(true); }}
         />
       )}
 
-      {showAddClient && (
-        <ClientFormModal
-          onClose={() => setShowAddClient(false)}
-          onSuccess={() => { setShowAddClient(false); fetchAll(); setShowCreate(true); }}
-        />
+      {showPayModal && payInvoiceData && (
+        <div className="adm-modal-overlay" onClick={e => e.target === e.currentTarget && setShowPayModal(false)}>
+          <div className="adm-modal">
+            <div className="adm-modal-hd"><h3>Update Payment</h3><button className="adm-modal-close" onClick={() => setShowPayModal(false)}><X size={15} /></button></div>
+            <form onSubmit={handlePayBalance} className="adm-panel-body">
+              <p style={{ fontSize: '.85rem', color: 'rgba(255,255,255,.5)', marginBottom: '1rem' }}>Total Amount: ₹{(payInvoiceData.total_amount_paise / 100).toLocaleString()}, Paid Previously: ₹{(payInvoiceData.advance_paid_paise / 100).toLocaleString()}</p>
+              <div className="adm-form-group">
+                <label>Total Payment Collected Now (Update Total)</label>
+                <input required type="number" step="0.01" className="adm-input" defaultValue={payInvoiceData.total_amount_paise / 100} id="pay-balance-input" />
+              </div>
+              <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                <button type="button" className="adm-btn adm-btn-ghost" onClick={() => setShowPayModal(false)}>Cancel</button>
+                <button type="submit" className="adm-btn adm-btn-success">Mark Fully Paid</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
 
-function InvoiceFormModal({ onClose, onSuccess, cars, clients, onAddClient }) {
+function InvoiceFormModal({ onClose, onSuccess, cars }) {
   const [form, setForm] = useState({
-    client_id: '', car_id: '', bill_type: 'NON_GST', company_name: '', party_gstin: '',
+    customer_name: '', customer_phone: '', customer_email: '',
+    car_id: '', bill_type: 'NON_GST', company_name: '', party_gstin: '',
     place_from: '', place_to: '', working_days: '', start_date: '', end_date: '',
     start_km: '', end_km: '', km_limit_per_day: 300, extra_km_rate: '', 
     avg_monthly_rate: '', qty_avg_per_month: 1,
@@ -1259,10 +1297,10 @@ function InvoiceFormModal({ onClose, onSuccess, cars, clients, onAddClient }) {
     const extra_duty_paise = Math.round((parseFloat(form.driver_extra_duty_hours) || 0) * (parseFloat(form.driver_extra_duty_rate) || 0) * 100);
     const others_paise = (Math.round(parseFloat(form.driver_batta) || 0) + Math.round(parseFloat(form.toll_gate) || 0) + Math.round(parseFloat(form.fastag) || 0)) * 100;
     
-    const subtotal = base_days_paise + avg_monthly_paise + extra_km_paise + extra_duty_paise + others_paise;
-    const gst = form.bill_type === 'GST' ? Math.round(subtotal * (parseFloat(form.cgst_rate) + parseFloat(form.sgst_rate)) / 100) : 0;
+    const taxable_subtotal = base_days_paise + avg_monthly_paise + extra_km_paise + extra_duty_paise;
+    const gst = form.bill_type === 'GST' ? Math.round(taxable_subtotal * (parseFloat(form.cgst_rate) + parseFloat(form.sgst_rate)) / 100) : 0;
     
-    setCalc({ total_km, extra_km, total_paise: subtotal + gst });
+    setCalc({ total_km, extra_km, total_paise: taxable_subtotal + gst + others_paise });
   }, [form]);
 
   const handleSubmit = async (e) => {
@@ -1276,7 +1314,6 @@ function InvoiceFormModal({ onClose, onSuccess, cars, clients, onAddClient }) {
 
     const payload = {
       ...form,
-      client_id: parseInt(form.client_id),
       car_id: parseInt(form.car_id),
       amount_for_days_paise: Math.round((parseFloat(form.amount_for_days) || 0) * 100),
       avg_monthly_rate_paise: Math.round((parseFloat(form.avg_monthly_rate) || 0) * 100),
@@ -1320,14 +1357,19 @@ function InvoiceFormModal({ onClose, onSuccess, cars, clients, onAddClient }) {
               </select>
             </div>
             <div className="adm-form-group">
-              <label style={{ display: 'flex', justifyContent: 'space-between' }}>
-                Select Customer 
-                <button type="button" onClick={onAddClient} style={{ background: 'none', border: 'none', color: '#10b981', fontSize: '.75rem', cursor: 'pointer', fontWeight: 700 }}>+ Add New</button>
-              </label>
-              <select required className="adm-input" value={form.client_id} onChange={e => setForm({...form, client_id: e.target.value})}>
-                <option value="">-- Choose Party --</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.full_name} ({c.phone_number})</option>)}
-              </select>
+              <label>Customer Name *</label>
+              <input required className="adm-input" placeholder="Enter Full Name" value={form.customer_name} onChange={e => setForm({...form, customer_name: e.target.value})} />
+            </div>
+          </div>
+          
+          <div className="adm-form-row">
+            <div className="adm-form-group">
+              <label>Mobile Number *</label>
+              <input required className="adm-input" placeholder="e.g. 9876543210" value={form.customer_phone} onChange={e => setForm({...form, customer_phone: e.target.value})} />
+            </div>
+            <div className="adm-form-group">
+              <label>Email Address</label>
+              <input type="email" className="adm-input" placeholder="Optional" value={form.customer_email} onChange={e => setForm({...form, customer_email: e.target.value})} />
             </div>
           </div>
 
@@ -1418,43 +1460,6 @@ function InvoiceFormModal({ onClose, onSuccess, cars, clients, onAddClient }) {
   );
 }
 
-function ClientFormModal({ onClose, onSuccess }) {
-  const [form, setForm] = useState({ full_name: '', phone_number: '', email: '', driving_license_number: '', gstin: '' });
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      const r = await fetch('/api/admin/billing/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: TOKEN },
-        body: JSON.stringify(form)
-      });
-      if (r.ok) { toast('Client added!', 'success'); onSuccess(); }
-      else { const d = await r.json(); toast(d.error || 'Failed', 'error'); }
-    } catch { toast('Network error', 'error'); }
-    setSubmitting(false);
-  };
-
-  return (
-    <div className="adm-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="adm-modal">
-        <div className="adm-modal-hd"><h3>Add New Client</h3><button className="adm-modal-close" onClick={onClose}><X size={15} /></button></div>
-        <form onSubmit={handleSubmit} style={{ padding: '0 1.5rem 1.5rem' }}>
-          <div className="adm-form-group"><label>Full Name *</label><input required className="adm-input" value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} /></div>
-          <div className="adm-form-group"><label>Phone Number *</label><input required className="adm-input" value={form.phone_number} onChange={e => setForm({...form, phone_number: e.target.value})} /></div>
-          <div className="adm-form-group"><label>Email</label><input type="email" className="adm-input" value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
-          <div className="adm-form-group"><label>GSTIN (Optional)</label><input className="adm-input" value={form.gstin} onChange={e => setForm({...form, gstin: e.target.value})} /></div>
-          <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-            <button type="button" className="adm-btn adm-btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="adm-btn adm-btn-primary" disabled={submitting}>{submitting ? 'Saving...' : 'Save Client'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 /* ══════════════════════════════════════════════════
    ROOT
@@ -1500,8 +1505,8 @@ export default function AdminDashboard() {
     { key: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={17} /> },
     { key: 'bookings', label: 'Bookings', icon: <BookOpen size={17} />, badge: pendingCount },
     { key: 'vehicles', label: 'Vehicles', icon: <Car size={17} /> },
-    { key: 'customers', label: 'Customers', icon: <Users size={17} /> },
     { key: 'billing', label: 'Billing Engine', icon: <Receipt size={17} /> },
+    { key: 'revenue', label: 'Revenue Tab', icon: <CreditCard size={17} /> },
     { key: 'reports', label: 'Reports', icon: <BarChart2 size={17} /> },
   ];
 
@@ -1509,7 +1514,7 @@ export default function AdminDashboard() {
     dashboard: ['Dashboard', 'Welcome back to BENAKA TRAVELS'],
     bookings: ['Bookings', 'Manage all customer reservations'],
     vehicles: ['Fleet Management', 'Add, edit, and manage your vehicles'],
-    customers: ['Customers', 'Customer profiles from bookings'],
+    revenue: ['Revenue & Accounting', 'Transaction and payments tracker'],
     billing: ['Advanced Billing', 'Invoicing and CRM suite'],
     reports: ['Reports & Analytics', 'Business performance overview'],
     settings: ['Settings', 'Configure your admin panel'],
@@ -1609,7 +1614,7 @@ export default function AdminDashboard() {
           {page === 'dashboard' && <DashboardPage setPage={setPage} />}
           {page === 'bookings' && <BookingsPage />}
           {page === 'vehicles' && <VehiclesPage />}
-          {page === 'customers' && <CustomersPage />}
+          {page === 'revenue' && <RevenuePage />}
           {page === 'billing' && <BillingEnginePage />}
           {page === 'reports' && <ReportsPage />}
           {page === 'settings' && <SettingsPage />}

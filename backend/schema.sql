@@ -61,21 +61,14 @@ INSERT INTO cars (name, category, price, image_url, features, seats, fuel_type, 
 -- BENAKA BILLING SOFTWARE SCHEMA (Appended)
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS clients (
-    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
-    full_name               TEXT    NOT NULL,
-    phone_number            TEXT    NOT NULL UNIQUE,
-    email                   TEXT,
-    driving_license_number  TEXT,
-    gstin                   TEXT,
-    created_at              TEXT    NOT NULL DEFAULT (datetime('now'))
-);
-
 CREATE TABLE IF NOT EXISTS invoices (
     id                  TEXT    PRIMARY KEY,   -- Format: INV-YYYY-XXXX
-    client_id           INTEGER NOT NULL,
     car_id              INTEGER NOT NULL,
     bill_type           TEXT    NOT NULL DEFAULT 'NON_GST' CHECK (bill_type IN ('GST', 'NON_GST')),
+    customer_name       TEXT    NOT NULL DEFAULT '',
+    customer_phone      TEXT    NOT NULL DEFAULT '',
+    customer_email      TEXT    DEFAULT '',
+    customer_gstin      TEXT    DEFAULT '',
     company_name        TEXT,                  -- Customer Company name (M/s)
     party_gstin         TEXT,
     place_from          TEXT,
@@ -112,7 +105,6 @@ CREATE TABLE IF NOT EXISTS invoices (
     status              TEXT    NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'Unpaid', 'Partially Paid', 'Paid')),
     created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
 
-    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT,
     FOREIGN KEY (car_id)    REFERENCES cars(id)    ON DELETE RESTRICT
 );
 
@@ -125,9 +117,7 @@ CREATE TABLE IF NOT EXISTS invoice_line_items (
     FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_invoices_client   ON invoices(client_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_car      ON invoices(car_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_status   ON invoices(status);
 CREATE INDEX IF NOT EXISTS idx_invoices_created  ON invoices(created_at);
 CREATE INDEX IF NOT EXISTS idx_line_items_inv    ON invoice_line_items(invoice_id);
-CREATE INDEX IF NOT EXISTS idx_clients_phone     ON clients(phone_number);

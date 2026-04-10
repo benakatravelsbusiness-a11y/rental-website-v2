@@ -3,21 +3,16 @@ export interface Env {
   ASSETS: { fetch: (req: Request) => Promise<Response> };
 }
 
-export interface Client {
-  id: number;
-  full_name: string;
-  phone_number: string;
-  email: string | null;
-  driving_license_number: string | null;
-  gstin: string | null;
-  created_at: string;
-}
+
 
 export interface Invoice {
   id: string; // INV-YYYY-XXXX
-  client_id: number;
   car_id: number;
   bill_type: 'GST' | 'NON_GST';
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string | null;
+  customer_gstin: string | null;
   company_name: string | null;
   party_gstin: string | null;
   place_from: string | null;
@@ -63,13 +58,6 @@ export interface InvoiceLineItem {
 }
 
 // Request/Response DTOs
-export interface CreateClientRequest {
-  full_name: string;
-  phone_number: string;
-  email?: string;
-  driving_license_number?: string;
-  gstin?: string;
-}
 
 export interface CreateInvoiceLineItem {
   description: string;
@@ -77,9 +65,12 @@ export interface CreateInvoiceLineItem {
 }
 
 export interface CreateInvoiceRequest {
-  client_id: number;
   car_id: number;
   bill_type: 'GST' | 'NON_GST';
+  customer_name: string;
+  customer_phone: string;
+  customer_email?: string;
+  customer_gstin?: string;
   company_name?: string;
   party_gstin?: string;
   place_from?: string;
@@ -117,7 +108,6 @@ export interface DashboardStats {
   revenue_this_month_paise: number;
   outstanding_paise: number;
   active_trips: number;
-  total_clients: number;
   total_fleet: number;
 }
 

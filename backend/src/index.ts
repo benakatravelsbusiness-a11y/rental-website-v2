@@ -5,7 +5,6 @@ import { secureHeaders } from 'hono/secure-headers';
 // Billing Sub-App Imports
 import { dashboardRoutes } from './billing-routes/dashboard';
 import { fleetRoutes } from './billing-routes/fleet';
-import { clientRoutes } from './billing-routes/clients';
 import { invoiceRoutes } from './billing-routes/invoices';
 
 type Bindings = { DB: D1Database };
@@ -308,10 +307,8 @@ app.get('/api/admin/revenue-chart', async (c) => {
   }
 });
 
-// ─── BILLING SUB-APP ROUTES (Admin Protected) ────────────────────────────────
 app.route('/api/admin/billing/dashboard', dashboardRoutes);
 app.route('/api/admin/billing/fleet', fleetRoutes);
-app.route('/api/admin/billing/clients', clientRoutes);
 app.route('/api/admin/billing/invoices', invoiceRoutes);
 
 export default app;
