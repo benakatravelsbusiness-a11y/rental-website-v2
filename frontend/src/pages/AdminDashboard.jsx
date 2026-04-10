@@ -95,10 +95,10 @@ function printProfessionalInvoice(invoiceData) {
 
   if (!isGST) {
     // IMAGE 1 (NON-GST) EXACT REPLICA
-    htmlContent = \`
-      <!DOCTYPE html><html><head><title>Cash Bill - \${i.id}</title>
+    htmlContent = `
+      <!DOCTYPE html><html><head><title>Cash Bill - ${i.id}</title>
       <style>
-        \${baseStyles}
+        ${baseStyles}
         .pad-container { padding: 30px; }
         .row-label { font-weight: 700; white-space: nowrap; margin-right: 5px; }
         .data-fill { flex-grow: 1; border-bottom: 1px solid #224388; color: #000; font-weight: 700; padding-left: 5px; }
@@ -119,40 +119,40 @@ function printProfessionalInvoice(invoiceData) {
         </div>
 
         <div style="margin-top: 30px;">
-          <div class="row w-full"><div class="row-label">No.</div><div class="data-fill">\${i.id}</div> <div class="row-label" style="margin-left: 20px;">Date:</div><div class="data-fill" style="flex-grow: 0.3;">\${new Date().toLocaleDateString('en-IN')}</div></div>
-          <div class="row w-full"><div class="row-label">Name :</div><div class="data-fill">\${i.company_name || i.client_name}</div></div>
-          <div class="row w-full"><div class="row-label">Vehicle No:</div><div class="data-fill">\${i.vehicle_no_override || i.car_model || ''}</div></div>
+          <div class="row w-full"><div class="row-label">No.</div><div class="data-fill">${i.id}</div> <div class="row-label" style="margin-left: 20px;">Date:</div><div class="data-fill" style="flex-grow: 0.3;">${new Date().toLocaleDateString('en-IN')}</div></div>
+          <div class="row w-full"><div class="row-label">Name :</div><div class="data-fill">${i.company_name || i.client_name}</div></div>
+          <div class="row w-full"><div class="row-label">Vehicle No:</div><div class="data-fill">${i.vehicle_no_override || i.car_model || ''}</div></div>
           
           <div class="flex" style="gap: 20px;">
-            <div class="row w-full"><div class="row-label">From:</div><div class="data-fill">\${i.place_from || ''}</div></div>
-            <div class="row w-full"><div class="row-label">To:</div><div class="data-fill">\${i.place_to || ''}</div></div>
+            <div class="row w-full"><div class="row-label">From:</div><div class="data-fill">${i.place_from || ''}</div></div>
+            <div class="row w-full"><div class="row-label">To:</div><div class="data-fill">${i.place_to || ''}</div></div>
           </div>
 
           <div class="flex" style="gap: 20px;">
-            <div class="row w-full"><div class="row-label">Opening Date:</div><div class="data-fill">\${i.start_date || ''}</div></div>
-            <div class="row w-full"><div class="row-label">Closing Date:</div><div class="data-fill">\${i.end_date || ''}</div></div>
+            <div class="row w-full"><div class="row-label">Opening Date:</div><div class="data-fill">${i.start_date || ''}</div></div>
+            <div class="row w-full"><div class="row-label">Closing Date:</div><div class="data-fill">${i.end_date || ''}</div></div>
           </div>
 
-          <div class="row w-full" style="width: 60%;"><div class="row-label">Working Days:</div><div class="data-fill">\${i.working_days || ''}</div></div>
+          <div class="row w-full" style="width: 60%;"><div class="row-label">Working Days:</div><div class="data-fill">${i.working_days || ''}</div></div>
 
           <div class="flex" style="gap: 20px;">
-            <div class="row w-full"><div class="row-label">Starting Km:</div><div class="data-fill">\${i.start_km || ''}</div></div>
-            <div class="row w-full"><div class="row-label">Closing Km:</div><div class="data-fill">\${i.end_km || ''}</div></div>
+            <div class="row w-full"><div class="row-label">Starting Km:</div><div class="data-fill">${i.start_km || ''}</div></div>
+            <div class="row w-full"><div class="row-label">Closing Km:</div><div class="data-fill">${i.end_km || ''}</div></div>
           </div>
 
-          <div class="row w-full" style="width: 60%;"><div class="row-label">Total Km:</div><div class="data-fill">\${i.total_km || ''}</div></div>
-          <div class="row w-full" style="width: 80%;"><div class="row-label">Driver Batta:</div><div class="data-fill">\${fmt(i.driver_batta_paise)}</div></div>
-          <div class="row w-full"><div class="row-label">Toll Gate Amount:</div><div class="data-fill">\${fmt(i.toll_gate_paise + i.fastag_paise)}</div></div>
+          <div class="row w-full" style="width: 60%;"><div class="row-label">Total Km:</div><div class="data-fill">${i.total_km || ''}</div></div>
+          <div class="row w-full" style="width: 80%;"><div class="row-label">Driver Batta:</div><div class="data-fill">${fmt(i.driver_batta_paise)}</div></div>
+          <div class="row w-full"><div class="row-label">Toll Gate Amount:</div><div class="data-fill">${fmt(i.toll_gate_paise + i.fastag_paise)}</div></div>
 
           <!-- Bottom Totals block -->
           <div class="bottom-calc">
-            <div class="row w-full"><div class="row-label">Total</div><div style="margin: 0 10px;">:</div><div class="data-fill text-right">\${fmt(i.total_amount_paise)}</div></div>
-            <div class="row w-full"><div class="row-label">Advance</div><div style="margin: 0 10px;">:</div><div class="data-fill text-right">\${fmt(i.advance_paid_paise)}</div></div>
-            <div class="row w-full"><div class="row-label">Total Balance</div><div style="margin: 0 10px;">:</div><div class="data-fill text-right">\${fmt(i.total_amount_paise - i.advance_paid_paise)}</div></div>
+            <div class="row w-full"><div class="row-label">Total</div><div style="margin: 0 10px;">:</div><div class="data-fill text-right">${fmt(i.total_amount_paise)}</div></div>
+            <div class="row w-full"><div class="row-label">Advance</div><div style="margin: 0 10px;">:</div><div class="data-fill text-right">${fmt(i.advance_paid_paise)}</div></div>
+            <div class="row w-full"><div class="row-label">Total Balance</div><div style="margin: 0 10px;">:</div><div class="data-fill text-right">${fmt(i.total_amount_paise - i.advance_paid_paise)}</div></div>
           </div>
 
           <div style="font-size: 11px; font-weight: 700; margin-top: 10px; color: #000;">
-            Note :<br/>Rate of Average Per Day (\${i.km_limit_per_day} kms)
+            Note :<br/>Rate of Average Per Day (${i.km_limit_per_day} kms)
           </div>
 
           <div class="sig-block">
@@ -162,13 +162,13 @@ function printProfessionalInvoice(invoiceData) {
         </div>
       </div>
       </body></html>
-    \`;
+    `;
   } else {
     // IMAGE 2 (GST) EXACT REPLICA
-    htmlContent = \`
-      <!DOCTYPE html><html><head><title>Tax Invoice - \${i.id}</title>
+    htmlContent = `
+      <!DOCTYPE html><html><head><title>Tax Invoice - ${i.id}</title>
       <style>
-        \${baseStyles}
+        ${baseStyles}
         .pad-container { border: 2px solid #224388; padding: 20px; font-weight: 700; }
         .row-label { white-space: nowrap; margin-right: 5px; }
         .data-fill { display: inline-block; border-bottom: 1px solid #224388; color: #000; padding: 0 5px; min-height: 1.2em; min-width: 50px; text-align: center; }
@@ -202,50 +202,50 @@ function printProfessionalInvoice(invoiceData) {
 
         <!-- Meta Data -->
         <div class="flex justify-between" style="margin-bottom: 15px;">
-          <div class="row"><div class="row-label" style="color: #ef4444;">Invoice No.</div><div class="data-fill" style="color: #ef4444; font-size: 18px;">\${i.id}</div></div>
-          <div class="row"><div class="row-label">Date :</div><div class="data-fill" style="width: 150px;">\${new Date().toLocaleDateString('en-IN')}</div></div>
+          <div class="row"><div class="row-label" style="color: #ef4444;">Invoice No.</div><div class="data-fill" style="color: #ef4444; font-size: 18px;">${i.id}</div></div>
+          <div class="row"><div class="row-label">Date :</div><div class="data-fill" style="width: 150px;">${new Date().toLocaleDateString('en-IN')}</div></div>
         </div>
         
-        <div class="fill-full"><div class="row-label">M/s.</div><div class="line">\${i.company_name || i.client_name}</div></div>
+        <div class="fill-full"><div class="row-label">M/s.</div><div class="line">${i.company_name || i.client_name}</div></div>
         
         <div class="flex gap-20">
-          <div class="fill-full w-full" style="flex: 2;"><div class="row-label">Party GSTIN :</div><div class="line">\${i.party_gstin || ''}</div></div>
-          <div class="fill-full w-full" style="flex: 1;"><div class="row-label">Vehicle No.</div><div class="line">\${i.vehicle_no_override || i.car_model || ''}</div></div>
+          <div class="fill-full w-full" style="flex: 2;"><div class="row-label">Party GSTIN :</div><div class="line">${i.party_gstin || ''}</div></div>
+          <div class="fill-full w-full" style="flex: 1;"><div class="row-label">Vehicle No.</div><div class="line">${i.vehicle_no_override || i.car_model || ''}</div></div>
         </div>
 
         <!-- Multipliers -->
         <div class="flex gap-20" style="margin-top: 15px;">
           <div style="flex: 1;" class="flex-col">
-            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Opening Date</div><div style="margin-right: 10px;">:</div><div class="line">\${i.start_date || ''}</div></div>
-            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Closing Date</div><div style="margin-right: 10px;">:</div><div class="line">\${i.end_date || ''}</div></div>
-            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Total Working Days</div><div style="margin-right: 10px;">:</div><div class="line">\${i.working_days || ''}</div></div>
-            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Starting Km</div><div style="margin-right: 10px;">:</div><div class="line">\${i.start_km || ''}</div></div>
-            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Ending Km</div><div style="margin-right: 10px;">:</div><div class="line">\${i.end_km || ''}</div></div>
-            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Total Km</div><div style="margin-right: 10px;">:</div><div class="line">\${i.total_km || ''}</div></div>
+            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Opening Date</div><div style="margin-right: 10px;">:</div><div class="line">${i.start_date || ''}</div></div>
+            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Closing Date</div><div style="margin-right: 10px;">:</div><div class="line">${i.end_date || ''}</div></div>
+            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Total Working Days</div><div style="margin-right: 10px;">:</div><div class="line">${i.working_days || ''}</div></div>
+            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Starting Km</div><div style="margin-right: 10px;">:</div><div class="line">${i.start_km || ''}</div></div>
+            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Ending Km</div><div style="margin-right: 10px;">:</div><div class="line">${i.end_km || ''}</div></div>
+            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Total Km</div><div style="margin-right: 10px;">:</div><div class="line">${i.total_km || ''}</div></div>
           </div>
           <div style="flex: 1;"></div> <!-- Empty space right -->
         </div>
 
         <div style="margin-top: 10px;">
-          <div class="fill-full"><div class="row-label">Rate of Extra Kms</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">\${i.extra_km_rate_paise/100} x \${i.extra_km_qty} = \${fmt(i.extra_km_total_paise)}</div></div>
-          <div class="fill-full"><div class="row-label">Rate of Average Per Month <span class="data-fill">\${i.km_limit_per_day}</span> Kms</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">\${i.avg_monthly_rate_paise/100} x \${i.qty_avg_per_month} = \${fmt(i.avg_monthly_rate_paise * i.qty_avg_per_month)}</div></div>
-          <div class="fill-full"><div class="row-label">Toll Gate Amount</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">\${fmt(i.toll_gate_paise)}</div></div>
-          <div class="fill-full"><div class="row-label">Amount for <span class="data-fill">\${i.working_days}</span> Days</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">\${fmt(i.amount_for_days_paise)}</div></div>
-          <div class="fill-full"><div class="row-label">Amount for Extra Kms: <span class="data-fill">\${i.extra_km_qty}</span> Kms</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">\${fmt(i.extra_km_total_paise)}</div></div>
-          <div class="fill-full"><div class="row-label">Driver Extra Duty: <span class="data-fill">\${i.driver_extra_duty_rate_paise/100} x \${i.driver_extra_duty_hours}</span> Hours</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">\${fmt(i.driver_extra_duty_total_paise)}</div></div>
+          <div class="fill-full"><div class="row-label">Rate of Extra Kms</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">${i.extra_km_rate_paise/100} x ${i.extra_km_qty} = ${fmt(i.extra_km_total_paise)}</div></div>
+          <div class="fill-full"><div class="row-label">Rate of Average Per Month <span class="data-fill">${i.km_limit_per_day}</span> Kms</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">${i.avg_monthly_rate_paise/100} x ${i.qty_avg_per_month} = ${fmt(i.avg_monthly_rate_paise * i.qty_avg_per_month)}</div></div>
+          <div class="fill-full"><div class="row-label">Toll Gate Amount</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">${fmt(i.toll_gate_paise)}</div></div>
+          <div class="fill-full"><div class="row-label">Amount for <span class="data-fill">${i.working_days}</span> Days</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">${fmt(i.amount_for_days_paise)}</div></div>
+          <div class="fill-full"><div class="row-label">Amount for Extra Kms: <span class="data-fill">${i.extra_km_qty}</span> Kms</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">${fmt(i.extra_km_total_paise)}</div></div>
+          <div class="fill-full"><div class="row-label">Driver Extra Duty: <span class="data-fill">${i.driver_extra_duty_rate_paise/100} x ${i.driver_extra_duty_hours}</span> Hours</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">${fmt(i.driver_extra_duty_total_paise)}</div></div>
         </div>
 
         <table class="calc-table">
           <tr>
             <td style="min-height: 100px; vertical-align: top; font-weight: normal; color: #000; font-size: 16px; white-space: pre-wrap;">
-              \${i.trip_description || '&nbsp;'}
+              ${i.trip_description || '&nbsp;'}
             </td>
             <td style="vertical-align: top;">
-              <div class="flex justify-between" style="border-bottom: 1px solid #224388; padding-bottom: 5px; margin-bottom: 5px;"><span>Amount</span><span class="col-amount">\${fmt(i.subtotal_paise)}</span></div>
-              <div class="flex justify-between"><span>CGST \${i.cgst_rate}%</span><span class="col-amount">\${fmt(i.cgst_paise)}</span></div>
-              <div class="flex justify-between"><span>SGST \${i.sgst_rate}%</span><span class="col-amount">\${fmt(i.sgst_paise)}</span></div>
-              <div class="flex justify-between"><span>Fastag / Batta</span><span class="col-amount">\${fmt(i.fastag_paise + i.driver_batta_paise)}</span></div>
-              <div class="flex justify-between" style="border-top: 1px solid #224388; padding-top: 5px; margin-top: 5px; font-weight: 900;"><span>G.TOTAL</span><span class="col-amount">\${fmt(i.total_amount_paise)}</span></div>
+              <div class="flex justify-between" style="border-bottom: 1px solid #224388; padding-bottom: 5px; margin-bottom: 5px;"><span>Amount</span><span class="col-amount">${fmt(i.subtotal_paise)}</span></div>
+              <div class="flex justify-between"><span>CGST ${i.cgst_rate}%</span><span class="col-amount">${fmt(i.cgst_paise)}</span></div>
+              <div class="flex justify-between"><span>SGST ${i.sgst_rate}%</span><span class="col-amount">${fmt(i.sgst_paise)}</span></div>
+              <div class="flex justify-between"><span>Fastag / Batta</span><span class="col-amount">${fmt(i.fastag_paise + i.driver_batta_paise)}</span></div>
+              <div class="flex justify-between" style="border-top: 1px solid #224388; padding-top: 5px; margin-top: 5px; font-weight: 900;"><span>G.TOTAL</span><span class="col-amount">${fmt(i.total_amount_paise)}</span></div>
             </td>
           </tr>
         </table>
@@ -257,7 +257,7 @@ function printProfessionalInvoice(invoiceData) {
 
       </div>
       </body></html>
-    \`;
+    `;
   }
   w.document.close();
   setTimeout(() => w.print(), 800);
