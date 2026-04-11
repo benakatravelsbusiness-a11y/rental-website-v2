@@ -1,6 +1,7 @@
 name = "benaka-rentals-app"
 main = "backend/src/index.ts"
 compatibility_date = "2025-04-01"
+account_id = "d1688ec33e365d9abe9904ea3432816f"
 
 [assets]
 directory = "frontend/dist"

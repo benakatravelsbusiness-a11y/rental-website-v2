@@ -19,7 +19,6 @@ function calculateGST(subtotalPaise: number, rate: number): number {
 invoiceRoutes.get('/', async (c) => {
   const db = c.env.DB;
   const status = c.req.query('status');
-  const clientId = c.req.query('client_id');
   const page = parseInt(c.req.query('page') || '1', 10);
   const limit = parseInt(c.req.query('limit') || '50', 10);
   const offset = (page - 1) * limit;
@@ -28,7 +27,6 @@ invoiceRoutes.get('/', async (c) => {
   const bindings: (string | number)[] = [];
 
   if (status) { conditions.push('i.status = ?'); bindings.push(status); }
-  if (clientId) { conditions.push('i.client_id = ?'); bindings.push(parseInt(clientId, 10)); }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   const countResult = await db.prepare(`SELECT COUNT(*) as total FROM invoices i ${whereClause}`).bind(...bindings).first<{ total: number }>();
@@ -84,11 +82,17 @@ invoiceRoutes.post('/', async (c) => {
   const qtyAvgVehicles = body.qty_avg_per_month || 1;
   const avgMonthlyTotalPaise = (body.avg_monthly_rate_paise || 0) * qtyAvgVehicles;
   
-  // 3. Distance Calculations
-  const totalKm = (body.end_km && body.start_km) ? (body.end_km - body.start_km) : 0;
-  const includedKms = workingDays * kmLimitPerDay;
-  const extraKmQty = Math.max(0, totalKm - includedKms);
-  const extraKmTotalPaise = extraKmQty * extraKmRate;
+  // 3. Distance Calculations — supports manual override for GST2
+  let totalKm: number, extraKmQty: number, extraKmTotalPaise: number;
+  if (body.start_km && body.end_km) {
+    totalKm = body.end_km - body.start_km;
+    const includedKms = workingDays * kmLimitPerDay;
+    extraKmQty = Math.max(0, totalKm - includedKms);
+  } else {
+    totalKm = 0;
+    extraKmQty = body.extra_km_qty || 0;
+  }
+  extraKmTotalPaise = extraKmQty * extraKmRate;
   
   // 4. Extra Duty Calculation
   const extraDutyHours = body.driver_extra_duty_hours || 0;
@@ -96,20 +100,20 @@ invoiceRoutes.post('/', async (c) => {
   const extraDutyTotalPaise = Math.round(extraDutyHours * extraDutyRate);
 
   // 5. Total Summation
-  const extras = (body.driver_batta_paise || 0) + (body.toll_gate_paise || 0) + (body.fastag_paise || 0);
+  const nonTaxableExtras = (body.driver_batta_paise || 0) + (body.toll_gate_paise || 0) + (body.fastag_paise || 0);
   const lineItemsSum = (body.line_items || []).reduce((sum, item) => sum + item.amount_paise, 0);
   
   // Final taxable subtotal
-  const subtotalPaise = amountForDaysPaise + avgMonthlyTotalPaise + extraKmTotalPaise + extraDutyTotalPaise + lineItemsSum;
+  const taxableSubtotalPaise = amountForDaysPaise + avgMonthlyTotalPaise + extraKmTotalPaise + extraDutyTotalPaise + lineItemsSum;
   
   // Tax Logic
   const cgstRate = body.cgst_rate ?? 9.0;
   const sgstRate = body.sgst_rate ?? 9.0;
-  const cgstPaise = body.bill_type === 'GST' ? calculateGST(subtotalPaise, cgstRate) : 0;
-  const sgstPaise = body.bill_type === 'GST' ? calculateGST(subtotalPaise, sgstRate) : 0;
+  const cgstPaise = (body.bill_type === 'GST' || body.bill_type === 'GST2') ? calculateGST(taxableSubtotalPaise, cgstRate) : 0;
+  const sgstPaise = (body.bill_type === 'GST' || body.bill_type === 'GST2') ? calculateGST(taxableSubtotalPaise, sgstRate) : 0;
   
-  // Grand total including non-taxable reimbursements
-  const totalAmountPaise = subtotalPaise + cgstPaise + sgstPaise + extras;
+  // Grand total including non-taxable reimbursements (Toll, Fastag, Batta)
+  const totalAmountPaise = taxableSubtotalPaise + cgstPaise + sgstPaise + nonTaxableExtras;
   const advancePaidPaise = body.advance_paid_paise || 0;
 
   let status = body.status || 'Unpaid';
@@ -126,12 +130,12 @@ invoiceRoutes.post('/', async (c) => {
       total_km, extra_km_qty, extra_km_total_paise, driver_extra_duty_hours, driver_extra_duty_rate_paise,
       driver_extra_duty_total_paise, amount_for_days_paise, qty_avg_per_month, km_limit_per_day,
       vehicle_no_override, trip_description, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     invoiceId, body.car_id, body.bill_type, body.customer_name, body.customer_phone, body.customer_email || null, body.customer_gstin || null, body.company_name || null, body.party_gstin || null,
     body.place_from || null, body.place_to || null, workingDays,
     body.start_date, body.end_date, body.start_km ?? null, body.end_km ?? null,
-    subtotalPaise, extraKmRate, body.avg_monthly_rate_paise || 0,
+    taxableSubtotalPaise, extraKmRate, body.avg_monthly_rate_paise || 0,
     extraDutyTotalPaise, body.driver_batta_paise || 0, body.toll_gate_paise || 0, body.fastag_paise || 0,
     cgstRate, sgstRate, cgstPaise, sgstPaise, totalAmountPaise, advancePaidPaise,
     totalKm, extraKmQty, extraKmTotalPaise, extraDutyHours, extraDutyRate,
@@ -145,7 +149,9 @@ invoiceRoutes.post('/', async (c) => {
     }
   }
 
-  statements.push(db.prepare(`UPDATE cars SET available = 0 WHERE id = ?`).bind(body.car_id));
+  if (body.bill_type !== 'GST2') {
+    statements.push(db.prepare(`UPDATE cars SET available = 0 WHERE id = ?`).bind(body.car_id));
+  }
 
   await db.batch(statements);
 

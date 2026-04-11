@@ -161,8 +161,11 @@ export default function ClientHome() {
                     <span className="car-spec"><Star size={13} /> Premium</span>
                   </div>
                   <p className="car-features-text">{car.features}</p>
-                  <div className="car-footer" style={{ borderTop: '1px solid var(--border)', paddingTop: '.9rem', display: 'flex', gap: '.5rem' }}>
-                    <a href="https://wa.me/916362416120" target="_blank" rel="noreferrer" className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
+                  <div className="car-footer" style={{ borderTop: '1px solid var(--border)', paddingTop: '.9rem', display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+                    <button className="btn btn-primary btn-sm" onClick={() => setSelectedCar(car)} style={{ flex: '1 1 100%', justifyContent: 'center' }}>
+                      <Calendar size={14} style={{ marginRight: '4px' }} /> Book Now
+                    </button>
+                    <a href="https://wa.me/916362416120" target="_blank" rel="noreferrer" className="btn btn-outline btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
                       <Phone size={14} style={{ marginRight: '4px' }} /> WhatsApp
                     </a>
                     <a href="tel:+916362416120" className="btn btn-outline btn-sm" style={{ flex: 1, justifyContent: 'center' }}>

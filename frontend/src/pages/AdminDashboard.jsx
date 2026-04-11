@@ -5,7 +5,7 @@ import {
   Settings, HelpCircle, Bell, RefreshCw,
   Plus, Trash2, CheckCircle, XCircle, Menu, X,
   Home, MessageCircle, Printer, Search, Phone, Receipt,
-  FileText, CreditCard, Calendar, User, MapPin, Gauge
+  FileText, CreditCard, Calendar, User, MapPin, Gauge, Eye
 } from 'lucide-react';
 import { Chart, registerables } from 'chart.js';
 import '../admin.css';
@@ -15,8 +15,6 @@ Chart.register(...registerables);
 const TOKEN = 'Bearer benakaAdmin2026';
 
 /* ══════════════ GLOBAL MODALS ══════════════ */
-let _setEndTripData = null;
-let _setShowEndTripModal = null;
 let _setManualBookingRef = null;
 
 let _setToasts = null;
@@ -43,6 +41,7 @@ function ToastHub() {
 const pillClass = { pending: 'pill-yellow', confirmed: 'pill-blue', completed: 'pill-green', cancelled: 'pill-red' };
 const StatusPill = ({ status }) => <span className={`pill ${pillClass[status] || 'pill-gray'}`}>{status}</span>;
 const whatsappLink = (phone, msg) => `https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(msg)}`;
+const fmtDate = (d) => { if (!d) return ''; const p = d.split('-'); return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : d; };
 const Loader = () => <div style={{ textAlign: 'center', padding: '3rem', color: 'rgba(255,255,255,.3)' }}>⏳ Loading...</div>;
 const Empty = ({ icon, text }) => <div style={{ textAlign: 'center', padding: '3rem', color: 'rgba(255,255,255,.3)' }}><div style={{ fontSize: '2rem', marginBottom: '.5rem' }}>{icon}</div>{text}</div>;
 
@@ -56,209 +55,220 @@ function exportCSV(rows, filename) {
   URL.revokeObjectURL(url);
 }
 
-/* Print high-fidelity invoice */
+/* Print high-fidelity invoice — pixel-perfect replica of physical billing pads */
 function printProfessionalInvoice(invoiceData) {
   const i = invoiceData;
-  const isGST = i.bill_type === 'GST';
-  const fmt = (paise) => `₹${((paise || 0) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  const isGST = i.bill_type === 'GST' || i.bill_type === 'GST2';
+  const fmt = (paise) => {
+    const v = (paise || 0) / 100;
+    return v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
 
   const w = window.open('', '_blank');
-  
-  const baseStyles = `
-    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: 'Roboto', sans-serif; color: #224388; background: #fff; font-size: 15px; padding: 20px; }
-    .flex { display: flex; }
-    .flex-col { display: flex; flex-direction: column; }
-    .justify-between { justify-content: space-between; }
-    .items-end { align-items: flex-end; }
-    .text-center { text-align: center; }
-    .text-right { text-align: right; }
-    .font-bold { font-weight: 700; }
-    .font-black { font-weight: 900; }
-    .italic { font-style: italic; }
-    
-    .input-line { display: inline-block; border-bottom: 1px solid #224388; color: #000; padding: 0 5px; min-height: 1.2em; vertical-align: bottom; }
-    .row { margin-bottom: 12px; display: flex; align-items: flex-end; }
-    .w-full { width: 100%; }
-    
-    .top-text { font-size: 11px; }
-    .brand-title { font-size: 26px; letter-spacing: 0.5px; margin: 5px 0; }
-    .badge { background: #224388; color: white; display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 13px; font-weight: 700; margin-bottom: 5px; }
-    .address { font-size: 13px; font-weight: 700; }
-    
-    .pad-container { max-width: 800px; margin: 0 auto; position: relative; }
-    .sig-block { margin-top: 60px; display: flex; justify-content: space-between; font-weight: 700; font-style: italic; }
+  if (!w) { alert('Please allow popups to view the bill.'); return; }
+
+  const perKmRate = i.extra_km_rate_paise ? (i.extra_km_rate_paise / 100) : 0;
+  const vType = perKmRate >= 10 ? 'AC' : 'Non AC';
+
+  const css = `
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Outfit',sans-serif;color:#1a3a7a;background:#fff;padding:18px;font-size:14px;}
+    @media print{body{padding:0;}@page{margin:10mm;}}
+    .bill{max-width:780px;margin:0 auto;border:3px solid #1a3a7a;padding:22px 28px;}
+    .hdr{text-align:center;border-bottom:2.5px solid #1a3a7a;padding-bottom:12px;margin-bottom:15px;position:relative;}
+    .hdr .ph{position:absolute;right:0;top:0;text-align:right;font-weight:700;font-size:13px;line-height:1.4;}
+    .hdr .gs{position:absolute;left:0;top:0;font-weight:800;font-size:11px;}
+    .sp{font-size:10px;font-style:italic;font-weight:600;}
+    .bt{font-size:13px;font-weight:800;letter-spacing:1px;margin:3px 0;}
+    .bn{font-size:26px;font-weight:800;letter-spacing:-0.3px;}
+    .tg{display:inline-block;border:2px solid #1a3a7a;border-radius:3px;padding:2px 14px;font-size:11px;font-weight:700;margin:4px 0;}
+    .adr{font-size:12px;font-weight:700;}
+    .fr{display:flex;align-items:baseline;margin-bottom:8px;}
+    .fl{font-weight:700;white-space:nowrap;font-size:14px;}
+    .fv{flex:1;border-bottom:1.5px solid #1a3a7a;color:#000;font-weight:600;padding:0 6px;min-height:1.2em;font-size:14px;}
+    .fc{font-weight:700;margin:0 4px;}
+    .fg{display:flex;gap:30px;}
+    .sig{display:flex;justify-content:space-between;margin-top:50px;font-weight:700;font-style:italic;font-size:13px;}
+    .sln{width:150px;border-bottom:1px solid #1a3a7a;margin-bottom:5px;}
   `;
 
   let htmlContent = '';
 
   if (!isGST) {
-    // IMAGE 1 (NON-GST) EXACT REPLICA
-    htmlContent = `
-      <!DOCTYPE html><html><head><title>Cash Bill - ${i.id}</title>
-      <style>
-        ${baseStyles}
-        .pad-container { padding: 30px; }
-        .row-label { font-weight: 700; white-space: nowrap; margin-right: 5px; }
-        .data-fill { flex-grow: 1; border-bottom: 1px solid #224388; color: #000; font-weight: 700; padding-left: 5px; }
-        .bottom-calc { margin-top: 20px; width: 60%; }
-        .bottom-calc .row-label { min-width: 120px; }
-      </style></head><body>
-      <div class="pad-container">
-        <!-- Header -->
-        <div style="position: absolute; right: 30px; top: 30px; font-weight: 700; font-size: 14px; text-align: right; line-height: 1.2;">
-          Cell : 8105197768<br/>6362416120
-        </div>
-        <div class="text-center">
-          <div class="top-text italic font-bold">|| Shri Veerabhadreshwara Prasanna ||</div>
-          <div class="font-black" style="font-size: 16px; margin-top: 2px;">CASH-BILL</div>
-          <div class="brand-title font-black">SHRI BENAKA TOURS & TRAVELS</div>
-          <div class="badge">Contact for All Types of AC & NON AC Vehicles</div>
-          <div class="address">Building No. 127, Panchaxari Nagar, 6th Cross, GADAG-582101</div>
-        </div>
+    // ═══════ NON-GST CASH BILL — Physical Pad Image 1 ═══════
+    htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cash Bill - ${i.id}</title>
+<style>${css}
+.tr{display:flex;align-items:baseline;margin-bottom:8px;}
+.tl{font-weight:800;font-size:15px;width:140px;}
+.tc{font-weight:800;margin:0 6px;}
+.tv{flex:1;border-bottom:2px solid #1a3a7a;font-weight:800;color:#000;font-size:15px;text-align:right;padding-right:10px;}
+.note{margin-top:15px;font-size:11px;font-weight:700;border-top:1.5px solid #1a3a7a;padding-top:8px;}
+</style></head><body>
+<div class="bill">
+  <div class="hdr">
+    <div class="ph">Cell : 8105197768<br>6362416120</div>
+    <div class="sp">|| Shri Veerabhadreshwara Prasanna ||</div>
+    <div class="bt">CASH-BILL</div>
+    <div class="bn">SHRI BENAKA TOURS &amp; TRAVELS</div>
+    <div class="tg">Contact for All Types of AC &amp; NON AC Vehicles</div>
+    <div class="adr">Building No. 127, Panchaxari Nagar, 6th Cross, GADAG-582101</div>
+  </div>
 
-        <div style="margin-top: 30px;">
-          <div class="row w-full"><div class="row-label">No.</div><div class="data-fill">${i.id}</div> <div class="row-label" style="margin-left: 20px;">Date:</div><div class="data-fill" style="flex-grow: 0.3;">${new Date().toLocaleDateString('en-IN')}</div></div>
-          <div class="row w-full"><div class="row-label">Name :</div><div class="data-fill">${i.company_name || i.client_name}</div></div>
-          <div class="row w-full"><div class="row-label">Vehicle No:</div><div class="data-fill">${i.vehicle_no_override || i.car_model || ''}</div></div>
-          
-          <div class="flex" style="gap: 20px;">
-            <div class="row w-full"><div class="row-label">From:</div><div class="data-fill">${i.place_from || ''}</div></div>
-            <div class="row w-full"><div class="row-label">To:</div><div class="data-fill">${i.place_to || ''}</div></div>
-          </div>
+  <div class="fg" style="margin-bottom:12px;">
+    <div class="fr" style="width:45%;"><span class="fl">No.</span><span class="fv">${i.id}</span></div>
+    <div class="fr" style="flex:1;"><span class="fl">Date:</span><span class="fv">${new Date(i.created_at || Date.now()).toLocaleDateString('en-IN', {day:'2-digit',month:'2-digit',year:'numeric'})}</span></div>
+  </div>
 
-          <div class="flex" style="gap: 20px;">
-            <div class="row w-full"><div class="row-label">Opening Date:</div><div class="data-fill">${i.start_date || ''}</div></div>
-            <div class="row w-full"><div class="row-label">Closing Date:</div><div class="data-fill">${i.end_date || ''}</div></div>
-          </div>
+  <div class="fr"><span class="fl">Name</span><span class="fc">:</span><span class="fv">${i.customer_name || ''}</span></div>
+  <div class="fr"><span class="fl">Vehicle No</span><span class="fc">:</span><span class="fv">${i.vehicle_no_override || i.car_model || ''}</span></div>
 
-          <div class="row w-full" style="width: 60%;"><div class="row-label">Working Days:</div><div class="data-fill">${i.working_days || ''}</div></div>
+  <div class="fg">
+    <div class="fr" style="flex:1;"><span class="fl">From</span><span class="fc">:</span><span class="fv">${i.place_from || ''}</span></div>
+    <div class="fr" style="flex:1;"><span class="fl">To</span><span class="fc">:</span><span class="fv">${i.place_to || ''}</span></div>
+  </div>
 
-          <div class="flex" style="gap: 20px;">
-            <div class="row w-full"><div class="row-label">Starting Km:</div><div class="data-fill">${i.start_km || ''}</div></div>
-            <div class="row w-full"><div class="row-label">Closing Km:</div><div class="data-fill">${i.end_km || ''}</div></div>
-          </div>
+  <div class="fg">
+    <div class="fr" style="flex:1;"><span class="fl">Opening Date</span><span class="fc">:</span><span class="fv">${fmtDate(i.start_date)}</span></div>
+    <div class="fr" style="flex:1;"><span class="fl">Closing Date</span><span class="fc">:</span><span class="fv">${fmtDate(i.end_date)}</span></div>
+  </div>
 
-          <div class="row w-full" style="width: 60%;"><div class="row-label">Total Km:</div><div class="data-fill">${i.total_km || ''}</div></div>
-          <div class="row w-full" style="width: 80%;"><div class="row-label">Driver Batta:</div><div class="data-fill">${fmt(i.driver_batta_paise)}</div></div>
-          <div class="row w-full"><div class="row-label">Toll Gate Amount:</div><div class="data-fill">${fmt(i.toll_gate_paise + i.fastag_paise)}</div></div>
+  <div class="fr"><span class="fl">Working Days</span><span class="fc">:</span><span class="fv" style="width:50%;flex:none;">${i.working_days || ''}</span></div>
 
-          <!-- Bottom Totals block -->
-          <div class="bottom-calc">
-            <div class="row w-full"><div class="row-label">Total</div><div style="margin: 0 10px;">:</div><div class="data-fill text-right">${fmt(i.total_amount_paise)}</div></div>
-            <div class="row w-full"><div class="row-label">Advance</div><div style="margin: 0 10px;">:</div><div class="data-fill text-right">${fmt(i.advance_paid_paise)}</div></div>
-            <div class="row w-full"><div class="row-label">Total Balance</div><div style="margin: 0 10px;">:</div><div class="data-fill text-right">${fmt(i.total_amount_paise - i.advance_paid_paise)}</div></div>
-          </div>
+  <div class="fg">
+    <div class="fr" style="flex:1;"><span class="fl">Starting Km</span><span class="fc">:</span><span class="fv">${i.start_km || ''}</span></div>
+    <div class="fr" style="flex:1;"><span class="fl">Closing Km</span><span class="fc">:</span><span class="fv">${i.end_km || ''}</span></div>
+  </div>
 
-          <div style="font-size: 11px; font-weight: 700; margin-top: 10px; color: #000;">
-            Note :<br/>Rate of Average Per Day (${i.km_limit_per_day} kms)
-          </div>
+  <div class="fr"><span class="fl">Total Km</span><span class="fc">:</span><span class="fv" style="width:50%;flex:none;">${i.total_km || ''}</span></div>
+  <div class="fr"><span class="fl">Driver Batta</span><span class="fc">:</span><span class="fv">${i.driver_batta_paise ? fmt(i.driver_batta_paise) : ''}</span></div>
+  <div class="fr"><span class="fl">Toll Gate Amount</span><span class="fc">:</span><span class="fv">${i.fastag_paise ? fmt(i.fastag_paise) : ''}</span></div>
 
-          <div class="sig-block">
-            <div>Client Signature</div>
-            <div>Signature</div>
-          </div>
-        </div>
-      </div>
-      </body></html>
-    `;
+  <div style="display:flex;gap:20px;margin-top:15px;border-top:2px solid #1a3a7a;padding-top:12px;">
+    <div style="flex:1;">
+      <div class="tr"><span class="tl">Total</span><span class="tc">:</span><span class="tv">${fmt(i.total_amount_paise)}</span></div>
+      <div class="tr"><span class="tl">Advance</span><span class="tc">:</span><span class="tv">${fmt(i.advance_paid_paise)}</span></div>
+      <div class="tr"><span class="tl">Total Balance</span><span class="tc">:</span><span class="tv">${fmt(i.total_amount_paise - (i.advance_paid_paise || 0))}</span></div>
+    </div>
+    <div style="align-self:flex-end;">
+      <svg width="170" height="70" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+        <rect x="10" y="35" width="180" height="28" rx="5" fill="#dde3ed" stroke="#1a3a7a" stroke-width="1.5"/>
+        <path d="M35 35 Q40 12 80 12 L140 12 Q165 12 170 35" fill="#c5cfe0" stroke="#1a3a7a" stroke-width="1.5"/>
+        <rect x="48" y="16" width="32" height="18" rx="2" fill="#b0d4f1" stroke="#1a3a7a" stroke-width="1"/>
+        <rect x="92" y="16" width="50" height="18" rx="2" fill="#b0d4f1" stroke="#1a3a7a" stroke-width="1"/>
+        <circle cx="52" cy="66" r="11" fill="#555" stroke="#1a3a7a" stroke-width="1.5"/><circle cx="52" cy="66" r="4" fill="#ddd"/>
+        <circle cx="152" cy="66" r="11" fill="#555" stroke="#1a3a7a" stroke-width="1.5"/><circle cx="152" cy="66" r="4" fill="#ddd"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="note"><strong>Note :</strong><br>Rate of Average Per Day (${i.km_limit_per_day || 300} kms) &mdash; ${vType} @ &#8377;${perKmRate}/km</div>
+
+  <div style="text-align:center;margin-top:18px;padding:6px 0;border-top:1.5px dashed #1a3a7a;font-size:12px;font-weight:700;color:#1a3a7a;">
+    For booking visit: <span style="color:#c00;font-size:13px;">www.benakatravels.in</span>
+  </div>
+
+  <div class="sig">
+    <div><div class="sln"></div><em>Client Signature</em></div>
+    <div style="text-align:right;"><div class="sln" style="margin-left:auto;"></div><em>Signature</em></div>
+  </div>
+</div>
+</body></html>`;
+
   } else {
-    // IMAGE 2 (GST) EXACT REPLICA
-    htmlContent = `
-      <!DOCTYPE html><html><head><title>Tax Invoice - ${i.id}</title>
-      <style>
-        ${baseStyles}
-        .pad-container { border: 2px solid #224388; padding: 20px; font-weight: 700; }
-        .row-label { white-space: nowrap; margin-right: 5px; }
-        .data-fill { display: inline-block; border-bottom: 1px solid #224388; color: #000; padding: 0 5px; min-height: 1.2em; min-width: 50px; text-align: center; }
-        
-        .calc-table { width: 100%; border-collapse: collapse; margin-top: 10px; border: 2px solid #224388; }
-        .calc-table td, .calc-table th { border: 1px solid #224388; padding: 8px; }
-        .calc-table .col-amount { width: 180px; text-align: right; color: #000; }
-        
-        .fill-full { display: flex; align-items: flex-end; margin-bottom: 10px; }
-        .fill-full .line { flex-grow: 1; border-bottom: 1px solid #224388; text-align: left; padding: 0 5px; color: #000;}
-      </style></head><body>
-      <div class="pad-container">
-        
-        <!-- Header -->
-        <div class="flex justify-between items-end" style="border-bottom: 1px solid #224388; padding-bottom: 5px; margin-bottom: 10px;">
-          <div style="font-size: 14px; font-weight: 900;">GSTIN: 29APHPL5323F1ZW</div>
-          <div class="text-center">
-            <div class="top-text italic">|| Shri Veerabhadreshwara Prasanna ||</div>
-            <div class="font-black" style="font-size: 16px;">CASH BILL</div>
-          </div>
-          <div class="text-right" style="font-size: 14px; font-weight: 900; line-height: 1.2;">
-            Cell : 8105197768<br/>6362416120
-          </div>
-        </div>
+    // ═══════ GST BILL (and GST BILL 2) — Physical Pad Image 2 ═══════
+    const exCalc = (i.extra_km_qty && i.extra_km_rate_paise)
+      ? i.extra_km_qty + ' x ' + (i.extra_km_rate_paise/100) + ' = ' + fmt(i.extra_km_total_paise)
+      : '\u2014';
+    const avgCalc = i.avg_monthly_rate_paise
+      ? (i.avg_monthly_rate_paise/100) + ' x ' + (i.qty_avg_per_month || 1) + ' = ' + fmt(i.avg_monthly_rate_paise * (i.qty_avg_per_month || 1))
+      : '\u2014';
+    const billLabel = i.bill_type === 'GST2' ? 'TAX INVOICE' : 'CASH BILL';
 
-        <div class="text-center" style="margin-bottom: 15px;">
-          <div class="brand-title font-black text-center">BENAKA TOURS & TRAVELS</div>
-          <div class="badge" style="background: none; color: #224388; border: 1px solid #224388; font-size: 12px; margin-bottom: 2px;">Contact for All Types of AC & NON AC Vehicles</div>
-          <div class="font-bold" style="font-size: 12px;">Building No. 127, Panchaxari Nagar, 6th Cross, GADAG-582101.</div>
-        </div>
+    htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${billLabel} - ${i.id}</title>
+<style>${css}
+.cs{margin-top:10px;border-top:1.5px solid #1a3a7a;padding-top:8px;}
+.cr{display:flex;align-items:baseline;margin-bottom:10px;}
+.cr .cl{flex:1;font-weight:700;font-size:14px;}
+.cr .rs{white-space:nowrap;font-weight:700;margin:0 4px;}
+.cr .cv{width:210px;border-bottom:1.5px solid #1a3a7a;font-weight:700;color:#000;font-size:14px;text-align:right;padding-right:8px;}
+.ct{width:100%;border-collapse:collapse;margin-top:12px;border:2.5px solid #1a3a7a;}
+.ct td{border:1.5px solid #1a3a7a;padding:8px 10px;font-weight:700;font-size:14px;vertical-align:top;}
+.cr2{display:flex;justify-content:space-between;padding:5px 0;}
+.cr2 .rv{font-weight:800;color:#000;min-width:110px;text-align:right;font-size:15px;}
+.gt{border-top:2.5px solid #1a3a7a;margin-top:5px;padding-top:8px;font-weight:900;font-size:17px;}
+</style></head><body>
+<div class="bill">
+  <div class="hdr">
+    <div class="gs">GSTIN: 29APHPL5323F1ZW</div>
+    <div class="ph">Cell : 8105197768<br>6362416120</div>
+    <div class="sp">|| Shri Veerabhadreshwara Prasanna ||</div>
+    <div class="bt">${billLabel}</div>
+    <div class="bn">BENAKA TOURS &amp; TRAVELS</div>
+    <div class="tg">Contact for All Types of AC &amp; NON AC Vehicles</div>
+    <div class="adr">Building No. 127, Panchaxari Nagar, 6th Cross, GADAG-582101.</div>
+  </div>
 
-        <!-- Meta Data -->
-        <div class="flex justify-between" style="margin-bottom: 15px;">
-          <div class="row"><div class="row-label" style="color: #ef4444;">Invoice No.</div><div class="data-fill" style="color: #ef4444; font-size: 18px;">${i.id}</div></div>
-          <div class="row"><div class="row-label">Date :</div><div class="data-fill" style="width: 150px;">${new Date().toLocaleDateString('en-IN')}</div></div>
-        </div>
-        
-        <div class="fill-full"><div class="row-label">M/s.</div><div class="line">${i.company_name || i.client_name}</div></div>
-        
-        <div class="flex gap-20">
-          <div class="fill-full w-full" style="flex: 2;"><div class="row-label">Party GSTIN :</div><div class="line">${i.party_gstin || ''}</div></div>
-          <div class="fill-full w-full" style="flex: 1;"><div class="row-label">Vehicle No.</div><div class="line">${i.vehicle_no_override || i.car_model || ''}</div></div>
-        </div>
+  <div class="fg" style="margin-bottom:10px;">
+    <div class="fr" style="flex:1;"><span class="fl">Invoice No.</span><span class="fv" style="font-weight:900;color:#c00;font-size:18px;">${i.id}</span></div>
+    <div class="fr" style="flex:1;"><span class="fl">Date :</span><span class="fv">${new Date(i.created_at || Date.now()).toLocaleDateString('en-IN', {day:'2-digit',month:'2-digit',year:'numeric'})}</span></div>
+  </div>
 
-        <!-- Multipliers -->
-        <div class="flex gap-20" style="margin-top: 15px;">
-          <div style="flex: 1;" class="flex-col">
-            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Opening Date</div><div style="margin-right: 10px;">:</div><div class="line">${i.start_date || ''}</div></div>
-            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Closing Date</div><div style="margin-right: 10px;">:</div><div class="line">${i.end_date || ''}</div></div>
-            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Total Working Days</div><div style="margin-right: 10px;">:</div><div class="line">${i.working_days || ''}</div></div>
-            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Starting Km</div><div style="margin-right: 10px;">:</div><div class="line">${i.start_km || ''}</div></div>
-            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Ending Km</div><div style="margin-right: 10px;">:</div><div class="line">${i.end_km || ''}</div></div>
-            <div class="fill-full"><div class="row-label" style="min-width: 160px;">Total Km</div><div style="margin-right: 10px;">:</div><div class="line">${i.total_km || ''}</div></div>
-          </div>
-          <div style="flex: 1;"></div> <!-- Empty space right -->
-        </div>
+  <div class="fr"><span class="fl">M/s.</span><span class="fv" style="font-size:16px;">${i.company_name || i.customer_name}</span></div>
 
-        <div style="margin-top: 10px;">
-          <div class="fill-full"><div class="row-label">Rate of Extra Kms</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">${i.extra_km_rate_paise/100} x ${i.extra_km_qty} = ${fmt(i.extra_km_total_paise)}</div></div>
-          <div class="fill-full"><div class="row-label">Rate of Average Per Month <span class="data-fill">${i.km_limit_per_day}</span> Kms</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">${i.avg_monthly_rate_paise/100} x ${i.qty_avg_per_month} = ${fmt(i.avg_monthly_rate_paise * i.qty_avg_per_month)}</div></div>
-          <div class="fill-full"><div class="row-label">Toll Gate Amount</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">${fmt(i.toll_gate_paise)}</div></div>
-          <div class="fill-full"><div class="row-label">Amount for <span class="data-fill">${i.working_days}</span> Days</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">${fmt(i.amount_for_days_paise)}</div></div>
-          <div class="fill-full"><div class="row-label">Amount for Extra Kms: <span class="data-fill">${i.extra_km_qty}</span> Kms</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">${fmt(i.extra_km_total_paise)}</div></div>
-          <div class="fill-full"><div class="row-label">Driver Extra Duty: <span class="data-fill">${i.driver_extra_duty_rate_paise/100} x ${i.driver_extra_duty_hours}</span> Hours</div><div class="row-label" style="margin-left: auto;">Rs. :</div><div class="line" style="text-align: right;">${fmt(i.driver_extra_duty_total_paise)}</div></div>
-        </div>
+  <div class="fg" style="margin-top:8px;">
+    <div class="fr" style="flex:2;"><span class="fl">Party GSTIN</span><span class="fc">:</span><span class="fv">${i.party_gstin || ''}</span></div>
+    <div class="fr" style="flex:1;"><span class="fl">Vehicle No.</span><span class="fv">${i.vehicle_no_override || i.car_model || ''}</span></div>
+  </div>
 
-        <table class="calc-table">
-          <tr>
-            <td style="min-height: 100px; vertical-align: top; font-weight: normal; color: #000; font-size: 16px; white-space: pre-wrap;">
-              ${i.trip_description || '&nbsp;'}
-            </td>
-            <td style="vertical-align: top;">
-              <div class="flex justify-between" style="border-bottom: 1px solid #224388; padding-bottom: 5px; margin-bottom: 5px;"><span>Amount</span><span class="col-amount">${fmt(i.subtotal_paise)}</span></div>
-              <div class="flex justify-between"><span>CGST ${i.cgst_rate}%</span><span class="col-amount">${fmt(i.cgst_paise)}</span></div>
-              <div class="flex justify-between"><span>SGST ${i.sgst_rate}%</span><span class="col-amount">${fmt(i.sgst_paise)}</span></div>
-              <div class="flex justify-between"><span>Fastag / Batta</span><span class="col-amount">${fmt(i.fastag_paise + i.driver_batta_paise)}</span></div>
-              <div class="flex justify-between" style="border-top: 1px solid #224388; padding-top: 5px; margin-top: 5px; font-weight: 900;"><span>G.TOTAL</span><span class="col-amount">${fmt(i.total_amount_paise)}</span></div>
-            </td>
-          </tr>
-        </table>
+  <div style="margin-top:12px;border-top:1.5px solid #1a3a7a;padding-top:10px;">
+    <div class="fr"><span class="fl" style="width:220px;">Opening Date</span><span class="fc">:</span><span class="fv">${fmtDate(i.start_date)}</span></div>
+    <div class="fr"><span class="fl" style="width:220px;">Closing Date</span><span class="fc">:</span><span class="fv">${fmtDate(i.end_date)}</span></div>
+    <div class="fr"><span class="fl" style="width:220px;">Total Working Days</span><span class="fc">:</span><span class="fv">${i.working_days || ''}</span></div>
+    <div class="fr"><span class="fl" style="width:220px;">Starting Km</span><span class="fc">:</span><span class="fv">${i.start_km || ''}</span></div>
+    <div class="fr"><span class="fl" style="width:220px;">Ending Km</span><span class="fc">:</span><span class="fv">${i.end_km || ''}</span></div>
+    <div class="fr"><span class="fl" style="width:220px;">Total Km</span><span class="fc">:</span><span class="fv">${i.total_km || ''}</span></div>
+  </div>
 
-        <div class="sig-block" style="margin-top: 40px;">
-          <div>Client Signature</div>
-          <div>For, BENAKA TOURS & TRAVELS</div>
-        </div>
+  <div class="cs">
+    <div class="cr"><span class="cl">Rate of Extra Kms</span><span class="rs">Rs. :</span><span class="cv">${exCalc}</span></div>
+    <div class="cr"><span class="cl">Rate of Average Per Month <u style="padding:0 8px;">${i.km_limit_per_day ? ((i.km_limit_per_day || 300) * (i.working_days || 30)) : ''}</u> Kms</span><span class="rs">Rs. :</span><span class="cv">${avgCalc}</span></div>
+    <div class="cr"><span class="cl">Toll Gate Amount</span><span class="rs">Rs. :</span><span class="cv">${i.fastag_paise ? fmt(i.fastag_paise) : '\u2014'}</span></div>
+    <div class="cr"><span class="cl">${i.bill_type === 'GST2' ? 'AC Charges' : ('Amount for <u style="padding:0 8px;">' + (i.working_days || '') + '</u> Days')}</span><span class="rs">Rs. :</span><span class="cv">${fmt(i.amount_for_days_paise)}</span></div>
+    <div class="cr"><span class="cl">Amount for Extra Kms: <u style="padding:0 8px;">${i.extra_km_qty || 0}</u> Kms</span><span class="rs">Rs. :</span><span class="cv">${fmt(i.extra_km_total_paise)}</span></div>
+    <div class="cr"><span class="cl">Driver Extra Duty: <u style="padding:0 8px;">${i.driver_extra_duty_hours || 0} x ${i.driver_extra_duty_rate_paise ? (i.driver_extra_duty_rate_paise/100) : 0}</u> Hours</span><span class="rs">Rs. :</span><span class="cv">${fmt(i.driver_extra_duty_total_paise)}</span></div>
+  </div>
 
-      </div>
-      </body></html>
-    `;
+  <table class="ct">
+    <tr>
+      <td style="width:50%;vertical-align:top;">
+        <div style="font-weight:800;margin-bottom:5px;">Description:</div>
+        <div style="color:#000;font-weight:400;font-size:13px;white-space:pre-line;">${i.trip_description || '&nbsp;'}</div>
+      </td>
+      <td>
+        <div class="cr2" style="border-bottom:1.5px solid #1a3a7a;"><span>Amount</span><span class="rv">${fmt(i.subtotal_paise)}</span></div>
+        <div class="cr2"><span>CGST ${i.cgst_rate || 9}%</span><span class="rv">${fmt(i.cgst_paise)}</span></div>
+        <div class="cr2"><span>SGST ${i.sgst_rate || 9}%</span><span class="rv">${fmt(i.sgst_paise)}</span></div>
+        ${(i.igst_paise && i.igst_paise > 0) ? '<div class="cr2"><span>IGST ' + (i.igst_rate || 0) + '%</span><span class="rv">' + fmt(i.igst_paise) + '</span></div>' : ''}
+        <div class="cr2" style="border-top:1px solid #ccc;"><span>Fastag</span><span class="rv">${fmt(i.fastag_paise)}</span></div>
+        <div class="cr2 gt"><span>G.TOTAL</span><span class="rv" style="font-size:17px;">${fmt(i.total_amount_paise)}</span></div>
+      </td>
+    </tr>
+  </table>
+
+  <div style="text-align:center;margin-top:18px;padding:6px 0;border-top:1.5px dashed #1a3a7a;font-size:12px;font-weight:700;color:#1a3a7a;">
+    For booking visit: <span style="color:#c00;font-size:13px;">www.benakatravels.in</span>
+  </div>
+
+  <div class="sig">
+    <div><div class="sln"></div><em>Client Signature</em></div>
+    <div style="text-align:right;"><div class="sln" style="margin-left:auto;"></div>For, <strong>BENAKA TOURS &amp; TRAVELS</strong></div>
+  </div>
+</div>
+</body></html>`;
   }
+
+  w.document.write(htmlContent);
   w.document.close();
   setTimeout(() => w.print(), 800);
 }
@@ -350,10 +360,10 @@ function DashboardPage({ setPage }) {
         fetch('/api/admin/revenue-chart', { headers: { Authorization: TOKEN } })
       ]);
       const res = await sr.json();
-      if (res.success) setStats(res.data);
+      if (res.success && res.data) setStats(res.data);
       const bd = await br.json(); if (Array.isArray(bd)) setBookings(bd);
       const cd = await cr.json(); if (Array.isArray(cd)) setChartData(cd);
-    } catch {}
+    } catch (e) { console.error('Dashboard fetch error', e); }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -375,7 +385,7 @@ function DashboardPage({ setPage }) {
       <div className="adm-stats-row">
         {[
           { label: 'Total Bookings', value: stats?.total_bookings ?? '—', sub: `Recent activity`, subClass: 'yellow', icon: '📋', iconClass: 'icon-blue' },
-          { label: 'Available Fleet', value: `${stats?.total_fleet - stats?.active_trips ?? '—'} Cars`, sub: `${stats?.total_fleet ?? '—'} total`, subClass: 'blue', icon: '🚗', iconClass: 'icon-green' },
+          { label: 'Available Fleet', value: `${(stats?.total_fleet || 0) - (stats?.active_trips || 0)} Cars`, sub: `${stats?.total_fleet || '—'} total`, subClass: 'blue', icon: '🚗', iconClass: 'icon-green' },
           { label: 'Total Revenue', value: `₹${((stats?.revenue_this_month_paise || 0) / 100).toLocaleString('en-IN')}`, sub: `This Month`, subClass: 'green', icon: '💰', iconClass: 'icon-yellow' },
           { label: 'Outstanding', value: `₹${((stats?.outstanding_paise || 0) / 100).toLocaleString('en-IN')}`, sub: `Collect from clients`, subClass: 'blue', icon: '🔑', iconClass: 'icon-red' },
         ].map((s, i) => (
@@ -460,7 +470,7 @@ function DashboardPage({ setPage }) {
                 <button className="quick-action-btn qa-primary" onClick={() => setPage('bookings')}><Plus size={14} /> Bookings</button>
                 <button className="quick-action-btn qa-secondary" onClick={() => setPage('vehicles')}>🚗 Fleet</button>
                 <button className="quick-action-btn qa-secondary" onClick={() => setPage('reports')}>📊 Reports</button>
-                <button className="quick-action-btn qa-secondary" onClick={() => setPage('customers')}>👥 Customers</button>
+                <button className="quick-action-btn qa-secondary" onClick={() => setPage('revenue')}>💰 Revenue</button>
               </div>
             </div>
           </div>
@@ -522,23 +532,6 @@ function BookingsPage() {
       });
       const d = await r.json();
       if (r.ok) { toast(d.message || 'Status updated', 'success'); fetchAll(); }
-      else toast(d.error || 'Failed', 'error');
-    } catch { toast('Network error', 'error'); }
-  };
-
-  const endTrip = async (id, endKm, extraCharge, desc) => {
-    try {
-      const r = await fetch(`/api/admin/billing/invoices/${id}/end-trip`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: TOKEN },
-        body: JSON.stringify({ end_km: parseInt(endKm), extra_charge_paise: Math.round(extraCharge * 100), description: desc })
-      });
-      const d = await r.json();
-      if (r.ok) { 
-        toast('Trip completed and car released!', 'success'); 
-        fetchAll(); 
-        setPage('billing'); // Redirect to billing to see the invoice
-      }
       else toast(d.error || 'Failed', 'error');
     } catch { toast('Network error', 'error'); }
   };
@@ -620,8 +613,8 @@ function BookingsPage() {
                     </td>
                     <td style={{ fontWeight: 500 }}>{b.car_name}</td>
                     <td style={{ fontSize: '.8rem', color: 'rgba(255,255,255,.5)' }}>
-                      <div>{b.pickup_date}</div>
-                      <div>→ {b.return_date}</div>
+                      <div>{fmtDate(b.pickup_date)}</div>
+                      <div>→ {fmtDate(b.return_date)}</div>
                     </td>
                     <td>{b.total_days}d</td>
                     <td style={{ fontWeight: 700, color: '#34d399' }}>₹{b.total_price}</td>
@@ -633,17 +626,14 @@ function BookingsPage() {
                           <button className="adm-btn adm-btn-danger adm-btn-sm" onClick={() => updateStatus(b.id, 'cancelled')} title="Cancel"><XCircle size={13} /></button>
                         </>}
                         {b.status === 'confirmed' && (
-                          <button className="adm-btn adm-btn-success adm-btn-sm" onClick={() => {
-                            _setEndTripData(b);
-                            setShowEndTripModal(true);
-                          }} title="Complete trip & release car">🏁 End Trip</button>
+                          <button className="adm-btn adm-btn-success adm-btn-sm" onClick={() => updateStatus(b.id, 'completed')} title="Complete trip & release car">🏁 End Trip</button>
                         )}
                         <button className="adm-btn adm-btn-ghost adm-btn-sm" onClick={() => {
                           const mockInvoice = {
                             id: b.ref,
                             bill_type: 'NON_GST',
-                            client_name: b.customer_name,
-                            client_phone: b.customer_phone,
+                            customer_name: b.customer_name,
+                            customer_phone: b.customer_phone,
                             car_model: b.car_name,
                             subtotal_paise: b.total_price * 100,
                             total_amount_paise: b.total_price * 100,
@@ -810,13 +800,13 @@ function VehiclesPage() {
               <div className="adm-form-group"><label>Name *</label><input required className="adm-input" placeholder="e.g. Lamborghini Urus" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
               <div className="adm-form-row">
                 <div className="adm-form-group"><label>Category *</label><select className="adm-input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>{['Sedan', 'SUV', 'MUV', 'Minibus', 'Bus'].map(c => <option key={c}>{c}</option>)}</select></div>
-                <div className="adm-form-group"><label>Daily Rate ($) *</label><input required type="number" className="adm-input" placeholder="450" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} /></div>
+                <div className="adm-form-group"><label>Daily Rate (₹) *</label><input required type="number" className="adm-input" placeholder="1500" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} /></div>
               </div>
               <div className="adm-form-row">
                 <div className="adm-form-group"><label>Seats</label><input type="number" className="adm-input" value={form.seats} onChange={e => setForm({ ...form, seats: e.target.value })} /></div>
-                <div className="adm-form-group"><label>Fuel</label><select className="adm-input" value={form.fuel_type} onChange={e => setForm({ ...form, fuel_type: e.target.value })}>{['Petrol / CNG / Diesel', 'Petrol / CNG', 'Diesel', 'Petrol', 'Electric'].map(f => <option key={f}>{f}</option>)}</select></div>
+                <div className="adm-form-group"><label>Fuel Type</label><select className="adm-input" value={form.fuel_type} onChange={e => setForm({ ...form, fuel_type: e.target.value })}>{['Petrol', 'Diesel', 'CNG', 'Electric'].map(f => <option key={f}>{f}</option>)}</select></div>
               </div>
-              <div className="adm-form-group"><label>Features *</label><input required className="adm-input" placeholder="V8 Biturbo, 641hp" value={form.features} onChange={e => setForm({ ...form, features: e.target.value })} /></div>
+              <div className="adm-form-group"><label>Features *</label><input required className="adm-input" placeholder="AC, ABS, Music System" value={form.features} onChange={e => setForm({ ...form, features: e.target.value })} /></div>
               <div className="adm-form-group"><label>Image URL *</label><input required className="adm-input" placeholder="https://..." value={form.image_url} onChange={e => setForm({ ...form, image_url: e.target.value })} /></div>
               <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
                 <button type="button" className="adm-btn adm-btn-ghost" onClick={() => setShowModal(false)}>Cancel</button>
@@ -826,101 +816,6 @@ function VehiclesPage() {
           </div>
         </div>
       )}
-    </>
-  );
-}
-
-/* ══════════════════════════════════════════════════
-   REVENUE PAGE
-══════════════════════════════════════════════════ */
-function RevenuePage() {
-  const [invoices, setInvoices] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0];
-  });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
-
-  useEffect(() => {
-    setLoading(true);
-    fetch('/api/admin/billing/invoices', { headers: { Authorization: TOKEN } })
-      .then(r => r.json()).then(d => {
-        if (d.success) setInvoices(d.data.invoices);
-      }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
-
-  const filtered = invoices.filter(inv => {
-    if (inv.status === 'Draft') return false;
-    const invDate = new Date(inv.created_at);
-    if (startDate && invDate < new Date(startDate + 'T00:00:00')) return false;
-    if (endDate && invDate > new Date(endDate + 'T23:59:59')) return false;
-    return true;
-  });
-
-  const totalCalculated = filtered.reduce((acc, curr) => acc + curr.total_amount_paise, 0);
-  const totalCollected = filtered.reduce((acc, curr) => acc + curr.advance_paid_paise, 0);
-  const totalPending = totalCalculated - totalCollected;
-
-  return (
-    <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Revenue & Transactions</h2>
-          <p style={{ fontSize: '.8rem', color: 'rgba(255,255,255,.4)' }}>Billing Engine accuracy reporting</p>
-        </div>
-        <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '.25rem', borderRadius: '8px' }}>
-          <input type="date" className="adm-input" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ padding: '.5rem', fontSize: '.75rem' }} />
-          <span style={{ color: 'rgba(255,255,255,.3)', fontSize: '.75rem' }}>to</span>
-          <input type="date" className="adm-input" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ padding: '.5rem', fontSize: '.75rem' }} />
-        </div>
-      </div>
-
-      <div className="adm-stats-row" style={{ marginBottom: '1.5rem' }}>
-        <div className="adm-stat-card">
-          <div>
-            <div className="adm-stat-label">Total Invoiced</div>
-            <div className="adm-stat-value" style={{ fontSize: '1.5rem' }}>₹{(totalCalculated / 100).toLocaleString()}</div>
-          </div>
-          <div className="adm-stat-icon icon-blue">📋</div>
-        </div>
-        <div className="adm-stat-card">
-          <div>
-            <div className="adm-stat-label">Total Collected</div>
-            <div className="adm-stat-value" style={{ fontSize: '1.5rem', color: '#34d399' }}>₹{(totalCollected / 100).toLocaleString()}</div>
-          </div>
-          <div className="adm-stat-icon icon-green">💰</div>
-        </div>
-        <div className="adm-stat-card">
-          <div>
-            <div className="adm-stat-label">Pending Balance</div>
-            <div className="adm-stat-value" style={{ fontSize: '1.5rem', color: '#ef4444' }}>₹{(totalPending / 100).toLocaleString()}</div>
-          </div>
-          <div className="adm-stat-icon icon-red">⏳</div>
-        </div>
-      </div>
-
-      <div className="adm-panel">
-        <div style={{ overflowX: 'auto' }}>
-          {loading ? <Loader /> : filtered.length === 0 ? <Empty icon="💳" text="No transactions found in this date range" /> : (
-            <table className="adm-table">
-              <thead><tr><th>Date</th><th>INV #</th><th>Customer</th><th>Total Bill</th><th>Paid Amount</th><th>Balance</th><th>Status</th></tr></thead>
-              <tbody>
-                {filtered.map(i => (
-                  <tr key={i.id}>
-                    <td style={{ color: 'rgba(255,255,255,.5)', fontSize: '.8rem' }}>{new Date(i.created_at).toLocaleDateString()}</td>
-                    <td style={{ fontFamily: 'monospace' }}>{i.id}</td>
-                    <td>{i.customer_name}</td>
-                    <td style={{ fontWeight: 700 }}>₹{(i.total_amount_paise / 100).toLocaleString()}</td>
-                    <td style={{ color: '#34d399' }}>₹{(i.advance_paid_paise / 100).toLocaleString()}</td>
-                    <td style={{ color: '#ef4444' }}>₹{((i.total_amount_paise - i.advance_paid_paise) / 100).toLocaleString()}</td>
-                    <td><StatusPill status={i.status} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
     </>
   );
 }
@@ -1060,7 +955,7 @@ function SettingsPage() {
 
 function SupportPage() {
   const faqs = [
-    { q: 'How does the booking lifecycle work?', a: 'Customer books → Status is PENDING → You click Confirm → Status is CONFIRMED (car stays rented, revenue counted) → When trip ends, click "Trip Done" → Status is COMPLETED (car released back to available, revenue preserved permanently).' },
+    { q: 'How does the booking lifecycle work?', a: 'Customer books → Status is PENDING → You click Confirm → Status is CONFIRMED (car stays rented, revenue counted) → When trip ends, click "End Trip" → Status is COMPLETED (car released back to available, revenue preserved permanently).' },
     { q: 'Why is revenue $0?', a: 'Revenue only counts bookings with status CONFIRMED or COMPLETED. Pending and cancelled bookings are not counted. Make sure to Confirm bookings to see revenue.' },
     { q: 'How to contact a customer?', a: 'Every booking row has a green WhatsApp button that opens a pre-filled message with all booking details. You can also go to Customers page to see all customers with WhatsApp links.' },
     { q: 'How does car availability work?', a: 'When a booking is created → car becomes Unavailable. When booking is Completed or Cancelled → car is automatically released back to Available. You can also manually toggle availability in the Vehicles page.' },
@@ -1094,8 +989,10 @@ function BillingEnginePage() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [showGST2, setShowGST2] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
   const [payInvoiceData, setPayInvoiceData] = useState(null);
+  const [deleteInvoiceId, setDeleteInvoiceId] = useState(null);
   const [cars, setCars] = useState([]);
 
   const fetchAll = useCallback(async () => {
@@ -1105,68 +1002,54 @@ function BillingEnginePage() {
         fetch('/api/admin/billing/invoices', { headers: { Authorization: TOKEN } }),
         fetch('/api/admin/cars', { headers: { Authorization: TOKEN } })
       ]);
-      const idata = await ir.json(); if (idata.success) setInvoices(idata.data.invoices);
+      const idata = await ir.json(); if (idata.success && idata.data?.invoices) setInvoices(idata.data.invoices);
       const cdata = await cr.json(); if (Array.isArray(cdata)) setCars(cdata);
-    } catch {}
+    } catch (e) {
+      console.error('Invoices fetch error', e);
+      toast('Failed to load invoices', 'error');
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const payload = {
-      ...form,
-      client_id: parseInt(form.client_id),
-      car_id: parseInt(form.car_id),
-      subtotal_paise: 0, // Simplified for now, backend will recalc if needed or I add line items
-      line_items: [{ description: 'Base Rental', amount_paise: 0 }],
-      advance_paid_paise: Math.round(form.advance_paid * 100),
-      driver_batta_paise: Math.round(form.driver_batta * 100),
-      toll_gate_paise: Math.round(form.toll_gate * 100),
-      fastag_paise: Math.round(form.fastag * 100),
-    };
-    
-    try {
-      const r = await fetch('/api/admin/billing/invoices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: TOKEN },
-        body: JSON.stringify(payload)
-      });
-      if (r.ok) {
-        toast('Invoice generated successfully', 'success');
-        setShowCreate(false);
-        fetchAll();
-      } else {
-        const d = await r.json();
-        toast(d.error || 'Failed to generate invoice', 'error');
-      }
-    } catch { toast('Network error: Could not reach server', 'error'); }
-  };
+  // (handleSubmit moved inside InvoiceFormModal)
 
-  const deleteInvoice = async (id) => {
-    if (!confirm('Permanent delete this invoice?')) return;
+  const executeDelete = async () => {
+    if (!deleteInvoiceId) return;
     try {
-      const r = await fetch(`/api/admin/billing/invoices/${id}`, { method: 'DELETE', headers: { Authorization: TOKEN } });
+      const r = await fetch(`/api/admin/billing/invoices/${deleteInvoiceId}`, { method: 'DELETE', headers: { Authorization: TOKEN } });
       if (r.ok) { toast('Invoice deleted', 'success'); fetchAll(); }
       else {
         const d = await r.json();
         toast(d.error || 'Delete failed', 'error');
       }
     } catch { toast('Network error during delete', 'error'); }
+    setDeleteInvoiceId(null);
   };
 
   const handlePayBalance = async (e) => {
     e.preventDefault();
     const paidAmt = document.getElementById('pay-balance-input').value;
     if (!paidAmt) return;
+    
+    // We update the invoice's advance_paid_paise to exactly what the user entered
+    // If it's matching or exceeding the total, we set status to 'Paid'
     try {
+      const totalAmt = payInvoiceData.total_amount_paise / 100;
+      const newPaid = parseFloat(paidAmt);
+      const newStatus = newPaid >= totalAmt ? 'Paid' : 'Partially Paid';
+      
       const r = await fetch(`/api/admin/billing/invoices/${payInvoiceData.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: TOKEN },
-        body: JSON.stringify({ status: 'Paid', advance_paid_paise: Math.round(parseFloat(paidAmt) * 100) })
+        body: JSON.stringify({ status: newStatus, advance_paid_paise: Math.round(newPaid * 100) })
       });
-      if (r.ok) { toast('Payment added!', 'success'); fetchAll(); setShowPayModal(false); }
+      if (r.ok) { toast('Payment updated successfully!', 'success'); fetchAll(); setShowPayModal(false); }
+      else {
+        const d = await r.json();
+        toast(d.error || 'Failed', 'error');
+      }
     } catch { toast('Error updating payment', 'error'); }
   };
 
@@ -1179,20 +1062,17 @@ function BillingEnginePage() {
         </div>
         <div style={{ display: 'flex', gap: '.75rem' }}>
           <button className="adm-btn adm-btn-ghost" onClick={fetchAll}><RefreshCw size={15} /> Refresh</button>
-          <button className="adm-btn adm-btn-primary" onClick={() => setShowCreate(true)}><Plus size={15} /> Create Manual Bill</button>
+          <button className="adm-btn adm-btn-primary" onClick={() => setShowCreate(true)}><Plus size={15} /> Non-GST Cash Bill</button>
+          <button className="adm-btn adm-btn-primary" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }} onClick={() => setShowGST2(true)}><FileText size={15} /> New GST Bill 2</button>
         </div>
       </div>
 
       <div className="adm-panel">
         <div style={{ overflowX: 'auto' }}>
           {loading ? (
-            <div style={{ padding: '4rem', textAlign: 'center' }}><p style={{ color: 'rgba(255,255,255,0.4)' }}>Loading...</p></div>
+            <Loader />
           ) : invoices.length === 0 ? (
-            <div style={{ padding: '5rem 2rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.3 }}>🧾</div>
-              <h3 style={{ fontWeight: 600, marginBottom: '.5rem' }}>No Invoices Yet</h3>
-              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '.9rem' }}>Create your first bill to see it here.</p>
-            </div>
+            <Empty icon="🧾" text="No invoices generated yet" />
           ) : (
             <table className="adm-table">
               <thead>
@@ -1212,16 +1092,16 @@ function BillingEnginePage() {
                     <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{inv.id}</td>
                     <td>{inv.customer_name}</td>
                     <td>{inv.car_model}</td>
-                    <td style={{ fontSize: '.8rem', color: 'rgba(255,255,255,0.6)' }}>{inv.start_date} → {inv.end_date}</td>
-                    <td style={{ fontWeight: 700, color: '#34d399', textAlign: 'right' }}>₹{(inv.total_amount_paise / 100).toLocaleString()}</td>
-                    <td><span className={`adm-badge ${inv.status.toLowerCase()}`}>{inv.status}</span></td>
+                    <td style={{ fontSize: '.8rem', color: 'rgba(255,255,255,0.6)' }}>{fmtDate(inv.start_date)} → {fmtDate(inv.end_date)}</td>
+                    <td style={{ fontWeight: 700, color: '#34d399', textAlign: 'right' }}>₹{((inv.total_amount_paise || 0) / 100).toLocaleString()}</td>
+                    <td><span className={`adm-badge ${(inv.status || 'Draft').toLowerCase()}`}>{inv.status || 'Draft'}</span></td>
                     <td>
                       <div style={{ display: 'flex', gap: '.4rem', justifyContent: 'flex-end' }}>
                         {inv.status !== 'Paid' && (
-                          <button className="adm-btn adm-btn-success adm-btn-sm" onClick={() => { setPayInvoiceData(inv); setShowPayModal(true); }} style={{ padding: '0 .5rem', fontSize: '.7rem' }}>💳 Pay</button>
+                          <button className="adm-btn adm-btn-success adm-btn-sm" onClick={() => { setPayInvoiceData(inv); setShowPayModal(true); }} style={{ padding: '0 .5rem', fontSize: '.7rem' }}>💳 Pay Balance</button>
                         )}
                         <button className="adm-btn adm-btn-ghost adm-btn-sm" onClick={() => printProfessionalInvoice(inv)} title="View/Print Bill" style={{ color: '#60a5fa' }}><Eye size={15} /></button>
-                        <button className="adm-btn adm-btn-ghost adm-btn-sm" onClick={() => deleteInvoice(inv.id)} title="Delete" style={{ color: '#ef4444' }}><Trash2 size={15} /></button>
+                        <button className="adm-btn adm-btn-ghost adm-btn-sm" onClick={() => setDeleteInvoiceId(inv.id)} title="Delete" style={{ color: '#ef4444' }}><Trash2 size={15} /></button>
                       </div>
                     </td>
                   </tr>
@@ -1236,6 +1116,16 @@ function BillingEnginePage() {
         <InvoiceFormModal 
           onClose={() => setShowCreate(false)} 
           onSuccess={() => { setShowCreate(false); fetchAll(); }}
+          defaultCarId={cars.length > 0 ? cars[0].id : 1}
+          cars={cars}
+        />
+      )}
+
+      {showGST2 && (
+        <GSTBillTwoModal
+          onClose={() => setShowGST2(false)}
+          onSuccess={() => { setShowGST2(false); fetchAll(); }}
+          defaultCarId={cars.length > 0 ? cars[0].id : 1}
           cars={cars}
         />
       )}
@@ -1245,16 +1135,33 @@ function BillingEnginePage() {
           <div className="adm-modal">
             <div className="adm-modal-hd"><h3>Update Payment</h3><button className="adm-modal-close" onClick={() => setShowPayModal(false)}><X size={15} /></button></div>
             <form onSubmit={handlePayBalance} className="adm-panel-body">
-              <p style={{ fontSize: '.85rem', color: 'rgba(255,255,255,.5)', marginBottom: '1rem' }}>Total Amount: ₹{(payInvoiceData.total_amount_paise / 100).toLocaleString()}, Paid Previously: ₹{(payInvoiceData.advance_paid_paise / 100).toLocaleString()}</p>
+              <p style={{ fontSize: '.85rem', color: 'rgba(255,255,255,.5)', marginBottom: '1rem' }}>Total Amount: ₹{((payInvoiceData.total_amount_paise || 0) / 100).toLocaleString()}, Paid Previously: ₹{((payInvoiceData.advance_paid_paise || 0) / 100).toLocaleString()}</p>
               <div className="adm-form-group">
                 <label>Total Payment Collected Now (Update Total)</label>
-                <input required type="number" step="0.01" className="adm-input" defaultValue={payInvoiceData.total_amount_paise / 100} id="pay-balance-input" />
+                <input required type="number" step="0.01" className="adm-input" defaultValue={(payInvoiceData.total_amount_paise || 0) / 100} id="pay-balance-input" />
               </div>
               <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
                 <button type="button" className="adm-btn adm-btn-ghost" onClick={() => setShowPayModal(false)}>Cancel</button>
-                <button type="submit" className="adm-btn adm-btn-success">Mark Fully Paid</button>
+                <button type="submit" className="adm-btn adm-btn-success">Update Payment</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {deleteInvoiceId && (
+        <div className="adm-modal-overlay" onClick={e => e.target === e.currentTarget && setDeleteInvoiceId(null)}>
+          <div className="adm-modal" style={{ maxWidth: '400px', textAlign: 'center' }}>
+            <div className="adm-modal-hd" style={{ justifyContent: 'center' }}>
+              <h3 style={{ color: '#ef4444' }}>Delete Invoice?</h3>
+            </div>
+            <div className="adm-panel-body">
+              <p>Are you sure you want to permanently delete invoice <strong>{deleteInvoiceId}</strong>? This action cannot be undone.</p>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                <button className="adm-btn adm-btn-ghost" onClick={() => setDeleteInvoiceId(null)} style={{ flex: 1 }}>Cancel</button>
+                <button className="adm-btn adm-btn-primary" onClick={executeDelete} style={{ flex: 1, background: '#ef4444' }}>Delete Permanently</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1262,71 +1169,163 @@ function BillingEnginePage() {
   );
 }
 
-
-function InvoiceFormModal({ onClose, onSuccess, cars }) {
-  const [form, setForm] = useState({
-    customer_name: '', customer_phone: '', customer_email: '',
-    car_id: '', bill_type: 'NON_GST', company_name: '', party_gstin: '',
-    place_from: '', place_to: '', working_days: '', start_date: '', end_date: '',
-    start_km: '', end_km: '', km_limit_per_day: 300, extra_km_rate: '', 
-    avg_monthly_rate: '', qty_avg_per_month: 1,
-    driver_extra_duty_hours: '', driver_extra_duty_rate: '', 
-    driver_batta: '', toll_gate: '', fastag: '', 
-    cgst_rate: 9, sgst_rate: 9, advance_paid: 0,
-    vehicle_no_override: '', trip_description: '',
-    amount_for_days: ''
+function RevenuePage() {
+  const [data, setData] = useState({ transactions: [], summary: { total_revenue_paise: 0, total_outstanding_paise: 0, count: 0 } });
+  const [loading, setLoading] = useState(true);
+  const [dates, setDates] = useState({
+    start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0]
   });
 
-  const [calc, setCalc] = useState({ total_km: 0, extra_km: 0, total_paise: 0 });
+  const fetchRevenue = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`/api/admin/billing/dashboard/revenue-report?start=${dates.start}&end=${dates.end}`, {
+        headers: { Authorization: TOKEN }
+      });
+      const d = await r.json();
+      if (d.success) setData(d.data);
+    } catch { toast('Error fetching revenue data', 'error'); }
+    setLoading(false);
+  };
 
-  useEffect(() => {
-    // Live Calculation
-    const days = parseInt(form.working_days) || 0;
-    const s_km = parseInt(form.start_km) || 0;
-    const e_km = parseInt(form.end_km) || 0;
-    const limit = parseInt(form.km_limit_per_day) || 300;
-    const ex_rate = parseFloat(form.extra_km_rate) || 0;
-    
-    const total_km = (e_km > s_km) ? (e_km - s_km) : 0;
-    const extra_km = Math.max(0, total_km - (days * limit));
-    
-    // Monetary sums
-    const base_days_paise = Math.round((parseFloat(form.amount_for_days) || 0) * 100);
-    const avg_monthly_paise = Math.round((parseFloat(form.avg_monthly_rate) || 0) * (parseInt(form.qty_avg_per_month) || 1) * 100);
-    const extra_km_paise = Math.round(extra_km * ex_rate * 100);
-    const extra_duty_paise = Math.round((parseFloat(form.driver_extra_duty_hours) || 0) * (parseFloat(form.driver_extra_duty_rate) || 0) * 100);
-    const others_paise = (Math.round(parseFloat(form.driver_batta) || 0) + Math.round(parseFloat(form.toll_gate) || 0) + Math.round(parseFloat(form.fastag) || 0)) * 100;
-    
-    const taxable_subtotal = base_days_paise + avg_monthly_paise + extra_km_paise + extra_duty_paise;
-    const gst = form.bill_type === 'GST' ? Math.round(taxable_subtotal * (parseFloat(form.cgst_rate) + parseFloat(form.sgst_rate)) / 100) : 0;
-    
-    setCalc({ total_km, extra_km, total_paise: taxable_subtotal + gst + others_paise });
-  }, [form]);
+  useEffect(() => { fetchRevenue(); }, [dates]);
+
+  const fmt = (p) => `₹${((p || 0) / 100).toLocaleString('en-IN')}`;
+
+  return (
+    <div className="adm-page-fade">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 800 }}>Revenue & Accounting</h2>
+          <p style={{ fontSize: '.8rem', color: 'rgba(255,255,255,.4)' }}>Tracking all collections and receivables</p>
+        </div>
+        <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', background: '#111113', padding: '.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,.05)' }}>
+          <input type="date" className="adm-input adm-input-sm" value={dates.start} onChange={e => setDates({...dates, start: e.target.value})} style={{ width: '130px', background: 'transparent', border: 'none' }} />
+          <span style={{ opacity: .3 }}>→</span>
+          <input type="date" className="adm-input adm-input-sm" value={dates.end} onChange={e => setDates({...dates, end: e.target.value})} style={{ width: '130px', background: 'transparent', border: 'none' }} />
+        </div>
+      </div>
+
+      <div className="adm-stats-grid" style={{ marginBottom: '1.5rem' }}>
+        <div className="adm-stat-card">
+          <div className="adm-stat-label">Total Collection</div>
+          <div className="adm-stat-value" style={{ color: '#10b981' }}>{fmt(data.summary.total_revenue_paise)}</div>
+          <div className="adm-stat-sub">Paid / Advance amount</div>
+        </div>
+        <div className="adm-stat-card">
+          <div className="adm-stat-label">Total Outstanding</div>
+          <div className="adm-stat-value" style={{ color: '#f59e0b' }}>{fmt(data.summary.total_outstanding_paise)}</div>
+          <div className="adm-stat-sub">Pending balance</div>
+        </div>
+        <div className="adm-stat-card">
+          <div className="adm-stat-label">Transactions</div>
+          <div className="adm-stat-value">{data.summary.count}</div>
+          <div className="adm-stat-sub">In selected period</div>
+        </div>
+      </div>
+
+      <div className="adm-panel">
+        <div className="adm-panel-header"><span className="adm-panel-title">Transaction History</span></div>
+        <div style={{ overflowX: 'auto' }}>
+          {loading ? <div style={{ padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>Loading...</div> : data.transactions.length === 0 ? <Empty icon="💸" text="No transactions in this period" /> : (
+            <table className="adm-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>ID</th>
+                  <th>Customer</th>
+                  <th>Type</th>
+                  <th style={{ textAlign: 'right' }}>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.transactions.map(t => (
+                  <tr key={t.id}>
+                    <td style={{ fontSize: '.8rem' }}>{new Date(t.created_at).toLocaleDateString()}</td>
+                    <td style={{ fontFamily: 'monospace' }}>{t.id}</td>
+                    <td>{t.customer_name}</td>
+                    <td><span className={`adm-badge ${(t.type || 'unknown').toLowerCase()}`}>{t.type}</span></td>
+                    <td style={{ textAlign: 'right', fontWeight: 700 }}>{fmt(t.type === 'Invoice' ? t.advance_paid_paise : t.total_amount_paise)}</td>
+                    <td><span className={`adm-badge ${(t.status || 'unknown').toLowerCase()}`}>{t.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+
+function GSTBillTwoModal({ onClose, onSuccess, defaultCarId, cars = [] }) {
+  const [f, setF] = useState({
+    customer_name: '', party_gstin: '', vehicle_details: '',
+    opening_date: '', closing_date: '', working_days_text: '',
+    vehicle_qty: 1, avg_monthly_rate: '',
+    extra_kms: '', extra_km_rate: '',
+    duty_hours: '', duty_rate: '',
+    ac_charges: '',
+    fastag: '',
+    igst_rate: '',
+    trip_description: '',
+    selected_car_id: defaultCarId || ''
+  });
+
+  // Strict manual calculation — no auto-derived values
+  const baseRent = (parseFloat(f.avg_monthly_rate) || 0) * (parseInt(f.vehicle_qty) || 1);
+  const extraKmAmt = (parseFloat(f.extra_kms) || 0) * (parseFloat(f.extra_km_rate) || 0);
+  const dutyAmt = (parseFloat(f.duty_hours) || 0) * (parseFloat(f.duty_rate) || 0);
+  const acAmt = parseFloat(f.ac_charges) || 0;
+  const taxableSubtotal = baseRent + extraKmAmt + dutyAmt + acAmt;
+  const cgst = Math.round(taxableSubtotal * 9) / 100;
+  const sgst = Math.round(taxableSubtotal * 9) / 100;
+  const igstRate = parseFloat(f.igst_rate) || 0;
+  const igstAmt = Math.round(taxableSubtotal * igstRate) / 100;
+  const fastagAmt = parseFloat(f.fastag) || 0;
+  const grandTotal = taxableSubtotal + cgst + sgst + igstAmt + fastagAmt;
+
+  const fmtINR = (v) => '\u20b9' + v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Auto-calculate base rental if working days and car rate are available
-    const selectedCar = cars.find(c => c.id === parseInt(form.car_id));
-    const dailyRate = selectedCar ? (selectedCar.price * 100) : 0;
-    const workingDays = parseInt(form.working_days) || 0;
-    const calculatedBasePaise = workingDays * dailyRate;
+    if (!f.customer_name) { toast('Customer name is required', 'error'); return; }
+    if (!f.opening_date || !f.closing_date) { toast('Opening and Closing dates are required', 'error'); return; }
 
     const payload = {
-      ...form,
-      car_id: parseInt(form.car_id),
-      amount_for_days_paise: Math.round((parseFloat(form.amount_for_days) || 0) * 100),
-      avg_monthly_rate_paise: Math.round((parseFloat(form.avg_monthly_rate) || 0) * 100),
-      extra_km_rate_paise: Math.round((parseFloat(form.extra_km_rate) || 0) * 100),
-      driver_extra_duty_hours: parseFloat(form.driver_extra_duty_hours) || 0,
-      driver_extra_duty_rate_paise: Math.round((parseFloat(form.driver_extra_duty_rate) || 0) * 100),
-      advance_paid_paise: Math.round(parseFloat(form.advance_paid) * 100),
-      driver_batta_paise: Math.round(parseFloat(form.driver_batta) * 100),
-      toll_gate_paise: Math.round(parseFloat(form.toll_gate) * 100),
-      fastag_paise: Math.round(parseFloat(form.fastag) * 100),
-      line_items: [] // Can be extended later if needed
+      customer_name: f.customer_name,
+      customer_phone: '0000000000',
+      car_id: parseInt(f.selected_car_id) || defaultCarId || 1,
+      bill_type: 'GST2',
+      company_name: f.customer_name,
+      party_gstin: f.party_gstin,
+      vehicle_no_override: f.vehicle_details,
+      start_date: f.opening_date,
+      end_date: f.closing_date,
+      working_days: parseInt(f.working_days_text) || 0,
+      qty_avg_per_month: parseInt(f.vehicle_qty) || 1,
+      avg_monthly_rate_paise: Math.round((parseFloat(f.avg_monthly_rate) || 0) * 100),
+      amount_for_days_paise: Math.round(acAmt * 100),
+      extra_km_rate_paise: Math.round((parseFloat(f.extra_km_rate) || 0) * 100),
+      extra_km_qty: parseInt(f.extra_kms) || 0,
+      driver_extra_duty_hours: parseFloat(f.duty_hours) || 0,
+      driver_extra_duty_rate_paise: Math.round((parseFloat(f.duty_rate) || 0) * 100),
+      driver_batta_paise: 0,
+      toll_gate_paise: 0,
+      fastag_paise: Math.round(fastagAmt * 100),
+      advance_paid_paise: 0,
+      cgst_rate: 9,
+      sgst_rate: 9,
+      km_limit_per_day: 300,
+      trip_description: f.trip_description,
+      line_items: []
     };
-    
+
     try {
       const r = await fetch('/api/admin/billing/invoices', {
         method: 'POST',
@@ -1334,125 +1333,259 @@ function InvoiceFormModal({ onClose, onSuccess, cars }) {
         body: JSON.stringify(payload)
       });
       if (r.ok) {
-        toast('Invoice generated successfully', 'success');
+        toast('GST Bill 2 generated!', 'success');
         onSuccess();
       } else {
         const d = await r.json();
-        toast(d.error || 'Failed', 'error');
+        toast(d.error || 'Failed to generate', 'error');
       }
     } catch { toast('Network error', 'error'); }
   };
 
   return (
     <div className="adm-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="adm-modal" style={{ maxWidth: '800px' }}>
-        <div className="adm-modal-hd"><h3>Create New Invoice / Manual Booking</h3><button className="adm-modal-close" onClick={onClose}><X size={15} /></button></div>
-        <form onSubmit={handleSubmit} className="billing-form" style={{ padding: '0 1.5rem 1.5rem' }}>
+      <div className="adm-modal" style={{ maxWidth: '780px' }}>
+        <div className="adm-modal-hd">
+          <h3>GST Bill 2 — Tax Invoice (Manual Entry)</h3>
+          <button className="adm-modal-close" onClick={onClose}><X size={15} /></button>
+        </div>
+        <form onSubmit={handleSubmit} style={{ padding: '0 1.5rem 1.5rem', maxHeight: '75vh', overflowY: 'auto' }}>
+
+          <div className="adm-form-section-title">{'\ud83c\udfe2'} Client & Invoice Details</div>
           <div className="adm-form-row">
-            <div className="adm-form-group">
-              <label>Bill Type</label>
-              <select className="adm-input" value={form.bill_type} onChange={e => setForm({...form, bill_type: e.target.value})}>
-                <option value="NON_GST">Cash Bill (Non-GST)</option>
-                <option value="GST">Tax Invoice (GST)</option>
-              </select>
-            </div>
-            <div className="adm-form-group">
-              <label>Customer Name *</label>
-              <input required className="adm-input" placeholder="Enter Full Name" value={form.customer_name} onChange={e => setForm({...form, customer_name: e.target.value})} />
-            </div>
+            <div className="adm-form-group"><label>Customer Name (M/s.) *</label><input required className="adm-input" placeholder="Company / Party Name" value={f.customer_name} onChange={e => setF({...f, customer_name: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Party GSTIN</label><input className="adm-input" placeholder="29XXXXX..." value={f.party_gstin} onChange={e => setF({...f, party_gstin: e.target.value})} /></div>
           </div>
-          
           <div className="adm-form-row">
-            <div className="adm-form-group">
-              <label>Mobile Number *</label>
-              <input required className="adm-input" placeholder="e.g. 9876543210" value={form.customer_phone} onChange={e => setForm({...form, customer_phone: e.target.value})} />
+            <div className="adm-form-group"><label>Select Vehicle</label><select className="adm-input" value={f.selected_car_id} onChange={e => setF({...f, selected_car_id: e.target.value})}><option value="">-- Select Vehicle --</option>{cars.map(c => <option key={c.id} value={c.id}>{c.name} ({c.category})</option>)}</select></div>
+            <div className="adm-form-group"><label>Vehicle No. / Details</label><input className="adm-input" placeholder='e.g. "05 vehicles" or KA-01-XX-1234' value={f.vehicle_details} onChange={e => setF({...f, vehicle_details: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Total Working Days</label><input className="adm-input" placeholder='e.g. "31"' value={f.working_days_text} onChange={e => setF({...f, working_days_text: e.target.value})} /></div>
+          </div>
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>Opening Date *</label><input required type="date" className="adm-input" value={f.opening_date} onChange={e => setF({...f, opening_date: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Closing Date *</label><input required type="date" className="adm-input" value={f.closing_date} onChange={e => setF({...f, closing_date: e.target.value})} /></div>
+          </div>
+
+          <div className="adm-form-section-title">{'\ud83d\udcb0'} Core Service Rates</div>
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>Vehicle Quantity</label><input type="number" className="adm-input" value={f.vehicle_qty} onChange={e => setF({...f, vehicle_qty: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Avg Monthly Rate / Vehicle ({'\u20b9'})</label><input type="number" className="adm-input" placeholder="e.g. 65967" value={f.avg_monthly_rate} onChange={e => setF({...f, avg_monthly_rate: e.target.value})} /></div>
+          </div>
+
+          <div className="adm-form-section-title">{'\ud83d\udccb'} Extra Charges</div>
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>Extra KMs Driven</label><input type="number" className="adm-input" placeholder="e.g. 7339" value={f.extra_kms} onChange={e => setF({...f, extra_kms: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Rate per Extra KM ({'\u20b9'})</label><input type="number" className="adm-input" placeholder="e.g. 12" value={f.extra_km_rate} onChange={e => setF({...f, extra_km_rate: e.target.value})} /></div>
+          </div>
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>Driver Extra Duty Hours</label><input type="number" className="adm-input" placeholder="e.g. 120" value={f.duty_hours} onChange={e => setF({...f, duty_hours: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Duty Rate per Hour ({'\u20b9'})</label><input type="number" className="adm-input" placeholder="e.g. 140" value={f.duty_rate} onChange={e => setF({...f, duty_rate: e.target.value})} /></div>
+          </div>
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>AC Charges ({'\u20b9'}) — Manual Flat Amount</label><input type="number" className="adm-input" placeholder="e.g. 5000" value={f.ac_charges} onChange={e => setF({...f, ac_charges: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Fastag / Toll Gate ({'\u20b9'}) — Non-Taxable</label><input type="number" className="adm-input" value={f.fastag} onChange={e => setF({...f, fastag: e.target.value})} /></div>
+          </div>
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>IGST Rate (%) — Default 0</label><input type="number" step="0.5" className="adm-input" placeholder="0" value={f.igst_rate} onChange={e => setF({...f, igst_rate: e.target.value})} /></div>
+          </div>
+          <div className="adm-form-row">
+            <div className="adm-form-group" style={{ flex: 2 }}><label>Trip Description</label><textarea className="adm-input" rows="2" placeholder="Description for the bill..." value={f.trip_description} onChange={e => setF({...f, trip_description: e.target.value})} style={{ resize: 'vertical', minHeight: '44px' }}></textarea></div>
+          </div>
+
+          <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', borderRadius: '12px', padding: '1.2rem', marginTop: '1rem' }}>
+            <div style={{ fontSize: '.85rem', fontWeight: 700, color: '#10b981', marginBottom: '.8rem', letterSpacing: '.5px' }}>CHARGES BREAKDOWN</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '.4rem 1rem', fontSize: '.9rem' }}>
+              <span style={{ color: 'rgba(255,255,255,.5)' }}>Base Rent ({f.avg_monthly_rate || 0} x {f.vehicle_qty || 1})</span><span style={{ fontWeight: 700, textAlign: 'right' }}>{fmtINR(baseRent)}</span>
+              <span style={{ color: 'rgba(255,255,255,.5)' }}>Extra KMs ({f.extra_kms || 0} x {f.extra_km_rate || 0})</span><span style={{ fontWeight: 700, textAlign: 'right' }}>{fmtINR(extraKmAmt)}</span>
+              <span style={{ color: 'rgba(255,255,255,.5)' }}>Driver Duty ({f.duty_hours || 0} x {f.duty_rate || 0})</span><span style={{ fontWeight: 700, textAlign: 'right' }}>{fmtINR(dutyAmt)}</span>
+              <span style={{ color: 'rgba(255,255,255,.5)' }}>AC Charges</span><span style={{ fontWeight: 700, textAlign: 'right' }}>{fmtINR(acAmt)}</span>
+              <div style={{ gridColumn: '1/-1', borderTop: '1px solid rgba(255,255,255,.1)', margin: '.3rem 0' }}></div>
+              <span style={{ fontWeight: 700 }}>Taxable Subtotal</span><span style={{ fontWeight: 800, textAlign: 'right' }}>{fmtINR(taxableSubtotal)}</span>
+              <span style={{ color: 'rgba(255,255,255,.5)' }}>CGST (9%)</span><span style={{ textAlign: 'right' }}>{fmtINR(cgst)}</span>
+              <span style={{ color: 'rgba(255,255,255,.5)' }}>SGST (9%)</span><span style={{ textAlign: 'right' }}>{fmtINR(sgst)}</span>
+              {igstRate > 0 && <><span style={{ color: 'rgba(255,255,255,.5)' }}>IGST ({igstRate}%)</span><span style={{ textAlign: 'right' }}>{fmtINR(igstAmt)}</span></>}
+              <span style={{ color: 'rgba(255,255,255,.5)' }}>Fastag / Toll (Non-Taxable)</span><span style={{ textAlign: 'right' }}>{fmtINR(fastagAmt)}</span>
             </div>
-            <div className="adm-form-group">
-              <label>Email Address</label>
-              <input type="email" className="adm-input" placeholder="Optional" value={form.customer_email} onChange={e => setForm({...form, customer_email: e.target.value})} />
+            <div style={{ borderTop: '2px solid #10b981', marginTop: '.8rem', paddingTop: '.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '1rem', fontWeight: 800 }}>ESTIMATED GRAND TOTAL</span>
+              <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#10b981' }}>{fmtINR(grandTotal)}</span>
             </div>
           </div>
 
-          {form.bill_type === 'GST' && (
-            <div className="adm-form-row">
-              <div className="adm-form-group"><label>Company Name (M/s)</label><input className="adm-input" placeholder="Party's Company Name" value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} /></div>
-              <div className="adm-form-group"><label>Party GSTIN</label><input className="adm-input" placeholder="29XXXXX..." value={form.party_gstin} onChange={e => setForm({...form, party_gstin: e.target.value})} /></div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+            <button type="button" className="adm-btn adm-btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="adm-btn adm-btn-primary">Generate GST Bill 2</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function InvoiceFormModal({ onClose, onSuccess, defaultCarId, cars = [] }) {
+  const [f, setF] = useState({
+    name: '', mobile: '', vehicle_no: '',
+    place_from: '', place_to: '',
+    opening_date: '', closing_date: '',
+    working_days: '', start_km: '', end_km: '',
+    driver_batta: '', toll_gate: '',
+    ac_rate_per_km: '', amount_for_days: '',
+    advance: '',
+    igst_rate: '',
+    selected_car_id: defaultCarId || ''
+  });
+
+  // Auto-calculate total km and AC charges
+  const sKm = parseInt(f.start_km) || 0;
+  const eKm = parseInt(f.end_km) || 0;
+  const totalKm = eKm > sKm ? eKm - sKm : 0;
+  const acRate = parseFloat(f.ac_rate_per_km) || 0;
+  const acCharges = acRate * totalKm;
+  const amtDays = parseFloat(f.amount_for_days) || 0;
+  const batta = parseFloat(f.driver_batta) || 0;
+  const toll = parseFloat(f.toll_gate) || 0;
+  const igstRateNon = parseFloat(f.igst_rate) || 0;
+  const igstAmtNon = Math.round((amtDays + acCharges) * igstRateNon) / 100;
+  const total = amtDays + batta + toll + acCharges + igstAmtNon;
+  const advance = parseFloat(f.advance) || 0;
+  const balance = total - advance;
+
+  const fmtINR = (v) => '\u20b9' + v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!f.name) { toast('Customer name is required', 'error'); return; }
+    if (!f.opening_date || !f.closing_date) { toast('Opening and Closing dates required', 'error'); return; }
+
+    const payload = {
+      customer_name: f.name,
+      customer_phone: f.mobile || '0000000000',
+      car_id: parseInt(f.selected_car_id) || defaultCarId || 1,
+      bill_type: 'NON_GST',
+      company_name: '',
+      party_gstin: '',
+      vehicle_no_override: f.vehicle_no,
+      place_from: f.place_from,
+      place_to: f.place_to,
+      start_date: f.opening_date,
+      end_date: f.closing_date,
+      working_days: parseInt(f.working_days) || 0,
+      start_km: parseInt(f.start_km) || 0,
+      end_km: parseInt(f.end_km) || 0,
+      km_limit_per_day: 300,
+      qty_avg_per_month: 1,
+      avg_monthly_rate_paise: 0,
+      amount_for_days_paise: Math.round(amtDays * 100),
+      extra_km_rate_paise: Math.round(acRate * 100),
+      extra_km_qty: 0,
+      driver_extra_duty_hours: 0,
+      driver_extra_duty_rate_paise: 0,
+      driver_batta_paise: Math.round(batta * 100),
+      toll_gate_paise: 0,
+      fastag_paise: Math.round(toll * 100),
+      advance_paid_paise: Math.round(advance * 100),
+      cgst_rate: 0,
+      sgst_rate: 0,
+      trip_description: '',
+      line_items: []
+    };
+
+    try {
+      const r = await fetch('/api/admin/billing/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: TOKEN },
+        body: JSON.stringify(payload)
+      });
+      if (r.ok) {
+        toast('Non-GST Cash Bill generated!', 'success');
+        onSuccess();
+      } else {
+        const d = await r.json();
+        toast(d.error || 'Failed to generate', 'error');
+      }
+    } catch { toast('Network error', 'error'); }
+  };
+
+  return (
+    <div className="adm-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="adm-modal" style={{ maxWidth: '680px' }}>
+        <div className="adm-modal-hd">
+          <h3>Non-GST Cash Bill</h3>
+          <button className="adm-modal-close" onClick={onClose}><X size={15} /></button>
+        </div>
+        <form onSubmit={handleSubmit} style={{ padding: '0 1.5rem 1.5rem', maxHeight: '75vh', overflowY: 'auto' }}>
+
+          <div className="adm-form-row">
+            <div className="adm-form-group" style={{ flex: 2 }}><label>Name *</label><input required className="adm-input" placeholder="Customer / Party Name" value={f.name} onChange={e => setF({...f, name: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Mobile</label><input className="adm-input" placeholder="Optional" value={f.mobile} onChange={e => setF({...f, mobile: e.target.value})} /></div>
+          </div>
+
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>Select Vehicle</label><select className="adm-input" value={f.selected_car_id} onChange={e => setF({...f, selected_car_id: e.target.value})}><option value="">-- Select Vehicle --</option>{cars.map(c => <option key={c.id} value={c.id}>{c.name} ({c.category})</option>)}</select></div>
+            <div className="adm-form-group"><label>Vehicle No</label><input className="adm-input" placeholder="e.g. KA-25-M-1234" value={f.vehicle_no} onChange={e => setF({...f, vehicle_no: e.target.value})} /></div>
+          </div>
+
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>From</label><input className="adm-input" placeholder="Place" value={f.place_from} onChange={e => setF({...f, place_from: e.target.value})} /></div>
+            <div className="adm-form-group"><label>To</label><input className="adm-input" placeholder="Place" value={f.place_to} onChange={e => setF({...f, place_to: e.target.value})} /></div>
+          </div>
+
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>Opening Date *</label><input required type="date" className="adm-input" value={f.opening_date} onChange={e => setF({...f, opening_date: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Closing Date *</label><input required type="date" className="adm-input" value={f.closing_date} onChange={e => setF({...f, closing_date: e.target.value})} /></div>
+          </div>
+
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>Working Days</label><input type="number" className="adm-input" value={f.working_days} onChange={e => setF({...f, working_days: e.target.value})} /></div>
+          </div>
+
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>Starting Km</label><input type="number" className="adm-input" value={f.start_km} onChange={e => setF({...f, start_km: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Closing Km</label><input type="number" className="adm-input" value={f.end_km} onChange={e => setF({...f, end_km: e.target.value})} /></div>
+            <div className="adm-form-group">
+              <label>Total Km</label>
+              <div className="adm-input" style={{ background: 'rgba(255,255,255,0.03)', cursor: 'default', fontWeight: 800, color: '#60a5fa' }}>{totalKm || '\u2014'}</div>
+            </div>
+          </div>
+
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>Driver Batta ({'\u20b9'})</label><input type="number" className="adm-input" placeholder="0" value={f.driver_batta} onChange={e => setF({...f, driver_batta: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Toll Gate Amount ({'\u20b9'})</label><input type="number" className="adm-input" placeholder="0" value={f.toll_gate} onChange={e => setF({...f, toll_gate: e.target.value})} /></div>
+          </div>
+
+          <div className="adm-form-row">
+            <div className="adm-form-group"><label>AC / Non-AC Rate ({'\u20b9'}/km) — Optional</label><input type="number" step="0.5" className="adm-input" placeholder="e.g. 11 for AC, 6 for Non-AC, leave blank if not applicable" value={f.ac_rate_per_km} onChange={e => setF({...f, ac_rate_per_km: e.target.value})} /></div>
+            <div className="adm-form-group"><label>IGST Rate (%) — Default 0</label><input type="number" step="0.5" className="adm-input" placeholder="0" value={f.igst_rate} onChange={e => setF({...f, igst_rate: e.target.value})} /></div>
+          </div>
+          {acRate > 0 && totalKm > 0 && (
+            <div style={{ fontSize: '.8rem', color: '#fbbf24', marginBottom: '.75rem', paddingLeft: '.25rem' }}>
+              AC/Non-AC: {totalKm} km x {'\u20b9'}{acRate}/km = {fmtINR(acCharges)}
             </div>
           )}
 
+          <div className="adm-form-section-title">{'\ud83d\udcb0'} Amount</div>
           <div className="adm-form-row">
-            <div className="adm-form-group">
-              <label>Vehicle</label>
-              <select required className="adm-input" value={form.car_id} onChange={e => {
-                const c = cars.find(v => v.id === parseInt(e.target.value));
-                setForm({...form, car_id: e.target.value, amount_for_days: c ? (c.price * (parseInt(form.working_days) || 1)) : form.amount_for_days});
-              }}>
-                <option value="">-- Select Car --</option>
-                {cars.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+            <div className="adm-form-group"><label>Amount for {f.working_days || 'X'} Days ({'\u20b9'}) *</label><input required type="number" className="adm-input highlight" placeholder="Main rental amount" value={f.amount_for_days} onChange={e => setF({...f, amount_for_days: e.target.value})} /></div>
+            <div className="adm-form-group"><label>Advance Received ({'\u20b9'})</label><input type="number" className="adm-input" placeholder="0" value={f.advance} onChange={e => setF({...f, advance: e.target.value})} /></div>
+          </div>
+
+          <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)', borderRadius: '12px', padding: '1.2rem', marginTop: '.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '.4rem 1rem', fontSize: '.9rem' }}>
+              <span style={{ color: 'rgba(255,255,255,.5)' }}>Amount for Days</span><span style={{ fontWeight: 700, textAlign: 'right' }}>{fmtINR(amtDays)}</span>
+              <span style={{ color: 'rgba(255,255,255,.5)' }}>Driver Batta</span><span style={{ fontWeight: 700, textAlign: 'right' }}>{fmtINR(batta)}</span>
+              <span style={{ color: 'rgba(255,255,255,.5)' }}>Toll Gate</span><span style={{ fontWeight: 700, textAlign: 'right' }}>{fmtINR(toll)}</span>
+              {acRate > 0 && (<><span style={{ color: 'rgba(255,255,255,.5)' }}>AC/Non-AC ({totalKm} km x {'\u20b9'}{acRate})</span><span style={{ fontWeight: 700, textAlign: 'right' }}>{fmtINR(acCharges)}</span></>)}
+              {igstRateNon > 0 && <><span style={{ color: 'rgba(255,255,255,.5)' }}>IGST ({igstRateNon}%)</span><span style={{ fontWeight: 700, textAlign: 'right' }}>{fmtINR(igstAmtNon)}</span></>}
+              <div style={{ gridColumn: '1/-1', borderTop: '1px solid rgba(255,255,255,.1)', margin: '.3rem 0' }}></div>
+              <span style={{ fontWeight: 800, fontSize: '1rem' }}>Total</span><span style={{ fontWeight: 900, textAlign: 'right', fontSize: '1.1rem', color: '#60a5fa' }}>{fmtINR(total)}</span>
+              <span style={{ color: 'rgba(255,255,255,.5)' }}>Advance</span><span style={{ textAlign: 'right' }}>{fmtINR(advance)}</span>
+              <span style={{ fontWeight: 800, fontSize: '1rem', color: '#34d399' }}>Balance</span><span style={{ fontWeight: 900, textAlign: 'right', fontSize: '1.1rem', color: '#34d399' }}>{fmtINR(balance)}</span>
             </div>
-            <div className="adm-form-group"><label>Vehicle Plate No.</label><input className="adm-input" placeholder="e.g. KA-01-XX-1234" value={form.vehicle_no_override} onChange={e => setForm({...form, vehicle_no_override: e.target.value})} /></div>
-            <div className="adm-form-group"><label>Working Days</label><input type="number" className="adm-input" value={form.working_days} onChange={e => setForm({...form, working_days: e.target.value})} /></div>
           </div>
 
-          <div className="adm-form-row">
-            <div className="adm-form-group"><label>Start Date</label><input type="date" className="adm-input" value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} /></div>
-            <div className="adm-form-group"><label>End Date</label><input type="date" className="adm-input" value={form.end_date} onChange={e => setForm({...form, end_date: e.target.value})} /></div>
-          </div>
-
-          <div className="adm-form-row">
-            <div className="adm-form-group"><label>Place From</label><input className="adm-input" value={form.place_from} onChange={e => setForm({...form, place_from: e.target.value})} /></div>
-            <div className="adm-form-group"><label>Place To</label><input className="adm-input" value={form.place_to} onChange={e => setForm({...form, place_to: e.target.value})} /></div>
-            <div className="adm-form-group" style={{ flex: 2 }}><label>Trip Description (Shows in Main Block)</label><textarea className="adm-input" rows="2" placeholder={'e.g. Corporate site visit...\nVehicle 1 Rent\nVehicle 2 Rent'} value={form.trip_description} onChange={e => setForm({...form, trip_description: e.target.value})} style={{ resize: 'vertical', minHeight: '44px' }}></textarea></div>
-          </div>
-
-          <div className="adm-form-section-title">📏 Distance Tracking</div>
-          <div className="adm-form-row">
-            <div className="adm-form-group"><label>Starting KM</label><input type="number" className="adm-input" value={form.start_km} onChange={e => setForm({...form, start_km: e.target.value})} /></div>
-            <div className="adm-form-group"><label>Closing KM</label><input type="number" className="adm-input" value={form.end_km} onChange={e => setForm({...form, end_km: e.target.value})} /></div>
-            <div className="adm-form-group"><label>KM Limit / Day</label><input type="number" className="adm-input" value={form.km_limit_per_day} onChange={e => setForm({...form, km_limit_per_day: e.target.value})} /></div>
-            <div className="adm-form-group"><label>Extra KM Rate (₹)</label><input type="number" className="adm-input" value={form.extra_km_rate} onChange={e => setForm({...form, extra_km_rate: e.target.value})} /></div>
-          </div>
-          <div className="calc-summary-row">
-            Total KM: <strong>{calc.total_km}</strong> | Extra KM: <strong>{calc.extra_km}</strong>
-          </div>
-
-          <div className="adm-form-section-title">💰 Charges Breakdown (₹)</div>
-          <div className="adm-form-row">
-            <div className="adm-form-group"><label>Amount for {form.working_days || 'X'} Days</label><input type="number" className="adm-input highlight" value={form.amount_for_days} onChange={e => setForm({...form, amount_for_days: e.target.value})} /></div>
-            <div className="adm-form-group" title="Rate * Qty"><label>Avg Monthly Rate</label><input type="number" className="adm-input" value={form.avg_monthly_rate} onChange={e => setForm({...form, avg_monthly_rate: e.target.value})} /></div>
-            <div className="adm-form-group"><label>Vehicle Qty</label><input type="number" className="adm-input" value={form.qty_avg_per_month} onChange={e => setForm({...form, qty_avg_per_month: e.target.value})} /></div>
-          </div>
-
-          <div className="adm-form-row" style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px' }}>
-            <div className="adm-form-group"><label>Extra Duty Hours</label><input type="number" className="adm-input" value={form.driver_extra_duty_hours} onChange={e => setForm({...form, driver_extra_duty_hours: e.target.value})} /></div>
-            <div className="adm-form-group"><label>Duty Rate (₹/Hr)</label><input type="number" className="adm-input" value={form.driver_extra_duty_rate} onChange={e => setForm({...form, driver_extra_duty_rate: e.target.value})} /></div>
-            <div className="adm-form-group"><label>Driver Batta</label><input type="number" className="adm-input" value={form.driver_batta} onChange={e => setForm({...form, driver_batta: e.target.value})} /></div>
-          </div>
-
-          <div className="adm-form-row">
-            <div className="adm-form-group"><label>Toll Gate</label><input type="number" className="adm-input" value={form.toll_gate} onChange={e => setForm({...form, toll_gate: e.target.value})} /></div>
-            <div className="adm-form-group"><label>Fastag Charges</label><input type="number" className="adm-input" value={form.fastag} onChange={e => setForm({...form, fastag: e.target.value})} /></div>
-          </div>
-
-          {form.bill_type === 'GST' && (
-            <div className="adm-form-row" style={{ background: 'rgba(16,185,129,0.05)', padding: '10px', borderRadius: '8px' }}>
-              <div className="adm-form-group"><label>CGST Rate (%)</label><input type="number" step="0.5" className="adm-input" value={form.cgst_rate} onChange={e => setForm({...form, cgst_rate: e.target.value})} /></div>
-              <div className="adm-form-group"><label>SGST Rate (%)</label><input type="number" step="0.5" className="adm-input" value={form.sgst_rate} onChange={e => setForm({...form, sgst_rate: e.target.value})} /></div>
-              <div className="adm-form-group" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', fontSize: '.75rem', color: '#10b981' }}>Auto-Pre-filled (Editable)</div>
-            </div>
-          )}
-
-          <div className="form-grand-total">
-            Estimated Grand Total: <span>₹{(calc.total_paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-          </div>
-
-          <div className="adm-form-row" style={{ marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1rem' }}>
-            <div className="adm-form-group"><label>Advance Received (₹)</label><input type="number" className="adm-input" value={form.advance_paid} onChange={e => setForm({...form, advance_paid: e.target.value})} /></div>
-            <div style={{ flex: 2, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', gap: '1rem' }}>
-              <button type="button" className="adm-btn adm-btn-ghost" onClick={onClose}>Cancel</button>
-              <button type="submit" className="adm-btn adm-btn-primary">Generate Final Invoice</button>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+            <button type="button" className="adm-btn adm-btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="adm-btn adm-btn-primary">Generate Cash Bill</button>
           </div>
         </form>
       </div>
@@ -1469,15 +1602,6 @@ export default function AdminDashboard() {
   const [page, setPage] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
-
-  // Modals state
-  const [showEndTripModal, setShowEndTripModal] = useState(false);
-  const [endTripData, setEndTripData] = useState(null);
-
-  useEffect(() => {
-    _setShowEndTripModal = setShowEndTripModal;
-    _setEndTripData = setEndTripData;
-  }, []);
 
   useEffect(() => {
     if (!isAuthorized) return;
@@ -1524,53 +1648,6 @@ export default function AdminDashboard() {
   return (
     <div className="adm-layout">
       <ToastHub />
-
-      {/* Global End Trip Modal */}
-      {showEndTripModal && endTripData && (
-        <div className="adm-modal-overlay" onClick={e => e.target === e.currentTarget && setShowEndTripModal(false)}>
-          <div className="adm-modal">
-            <div className="adm-modal-hd"><h3>End Trip: {endTripData.car_name}</h3><button className="adm-modal-close" onClick={() => setShowEndTripModal(false)}><X size={15} /></button></div>
-            <div className="adm-panel-body">
-              <p style={{ fontSize: '.85rem', color: 'rgba(255,255,255,.5)', marginBottom: '1rem' }}>Closing trip for {endTripData.customer_name}. Vehicle will be marked as available.</p>
-              <div className="adm-form-group">
-                <label>Closing KM Reading</label>
-                <input type="number" className="adm-input" placeholder="Enter final odometer reading" id="end-km-input" />
-              </div>
-              <div className="adm-form-group">
-                <label>Extra Charges (₹) - Optional</label>
-                <input type="number" className="adm-input" placeholder="Extra charges if any" id="extra-charge-input" />
-              </div>
-              <div className="adm-form-group">
-                <label>Charge Reason</label>
-                <input className="adm-input" placeholder="e.g. Extra hours, cleaning" id="extra-desc-input" />
-              </div>
-              <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
-                <button className="adm-btn adm-btn-ghost" onClick={() => setShowEndTripModal(false)}>Cancel</button>
-                <button className="adm-btn adm-btn-success" onClick={() => {
-                  const km = document.getElementById('end-km-input').value;
-                  const charge = document.getElementById('extra-charge-input').value || 0;
-                  const desc = document.getElementById('extra-desc-input').value;
-                  if (!km) return toast('End KM is required', 'error');
-                  
-                  fetch(`/api/admin/billing/invoices/${endTripData.id}/end-trip`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', Authorization: TOKEN },
-                    body: JSON.stringify({ end_km: parseInt(km), extra_charge_paise: Math.round(charge * 100), description: desc })
-                  }).then(r => r.json()).then(d => {
-                    if (d.success) {
-                      toast('Trip completed successfully!', 'success');
-                      setShowEndTripModal(false);
-                      setPage('billing');
-                    } else {
-                      toast(d.error || 'Failed', 'error');
-                    }
-                  });
-                }}>Complete Trip & Invoice</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <aside className={`adm-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="adm-sidebar-brand">
